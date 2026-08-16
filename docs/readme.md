@@ -1,1 +1,156 @@
 
+# AI-Recruitment-Platform
+
+An enterprise-grade, distributed AI-powered recruitment management system built with microservice architecture. The platform connects candidates, recruiters, and hiring managers with automated resume parsing, intelligent job matching, and centralized identity & access management.
+
+---
+
+##  System Architecture Overview
+
+```
+                                    ┌─────────────────────────────┐
+                                    │    Client App (React UI)    │
+                                    │    http://localhost:3000    │
+                                    └──────────────┬──────────────┘
+                                                   │
+                                                   │ HTTP / REST
+                                                   ▼
+                    ┌─────────────────────────────────────────────────────────────┐
+                    │            API GATEWAY (`api-gateway`: 8080)               │
+                    │   - Spring Cloud Gateway                                    │
+                    │   - JWT Auth & Token Validation Global Filter               │
+                    │   - Internal Service-to-Service API Key Filter              │
+                    │   - CORS & Centralized Error Handling                       │
+                    │   - Injects X-User-Email, X-User-Role, X-User-Id Headers    │
+                    └───────┬──────────────┬──────────────┬─────────────┬─────────┘
+                            │              │              │             │
+        ┌───────────────────┼──────────────┼──────────────┼─────────────┴─────────────┐
+        ▼                   ▼              ▼              ▼                           ▼
+┌───────────────┐   ┌──────────────┐ ┌───────────┐ ┌─────────────┐            ┌───────────────┐
+│ Auth Service  │   │  Candidate   │ │  Company  │ │ Job Service │            │ AI Resume Svc │
+│ (Port: 8081)  │   │ (Port: 8082) │ │(Port:8083)│ │(Port: 8084)│            │ (Port: 8085)  │
+└───────┬───────┘   └──────┬───────┘ └─────┬─────┘ └──────┬──────┘            └───────┬───────┘
+        │                  │               │              │                           │
+        ▼                  ▼               ▼              ▼                           ▼
+┌───────────────┐   ┌──────────────┐ ┌───────────┐ ┌─────────────┐            ┌───────────────┐
+│ auth_db       │   │ candidate_db │ │company_db │ │ job_db      │            │ AI Store/NLP  │
+│ (MySQL 3306)  │   │ (MySQL 3306) │ │(MySQL3306)│ │(MySQL 3306) │            │ (FastAPI/ML)  │
+└───────────────┘   └──────────────┘ └───────────┘ └─────────────┘            └───────────────┘
+```
+
+---
+
+##  Team & Microservice Allocations
+
+| Member | Role & Assigned Module | Port | Technology Stack | Responsibilities |
+|---|---|---|---|---|
+| **Member 1** | **API Gateway + Auth Service + Integration Lead** | `8080` (Gateway)<br>`8081` (Auth) | Spring Cloud Gateway, Spring Boot 3.3.5, Spring Security, JWT (JJWT), MySQL, Docker | Centralized Routing, JWT validation filter, API Key filter, Auth (register/login/validate), Docker Compose orchestration |
+| **Member 2** | **Candidate Service** | `8082` | Spring Boot, JPA, MySQL | Candidate profiles, work experience, skill management, education records |
+| **Member 3** | **Company Service** | `8083` | Spring Boot, JPA, MySQL | Company profile, recruiter management, department structure, verification |
+| **Member 4** | **Job Service** | `8084` | Spring Boot, JPA, MySQL | Job postings, requirements, application tracking, status workflows |
+| **Member 5** | **AI Resume Service + Frontend** | `8085` (AI)<br>`3000` (UI) | Python FastAPI / Flask, NLP, React.js / Next.js | Resume parsing (PDF/DOCX), skill extraction, candidate-job matching algorithms, interactive frontend UI |
+
+---
+
+##  Authentication & Authorization Flow
+
+1. **User Registration (`POST /api/auth/register`)**:
+   - Accepts `email`, `password`, `roleName` (`ROLE_CANDIDATE`, `ROLE_COMPANY`, `ROLE_ADMIN`).
+   - Hashes password using **BCrypt** with salt.
+   - Assigns role and persists user in `auth_db.users`.
+   - Returns JWT token and user profile metadata.
+
+2. **User Login (`POST /api/auth/login`)**:
+   - Verifies credentials against `auth_db`.
+   - Generates signed HMAC-SHA256 JWT containing `userId`, `email`, `role`, and expiration (24h).
+
+3. **Gateway Verification (`api-gateway`)**:
+   - All incoming requests (except public auth endpoints) pass through `JwtAuthFilter`.
+   - Gateway verifies cryptographic signature and expiration.
+   - Gateway extracts claims and forwards enriched headers to downstream microservices:
+     - `X-User-Id`: Authenticated User ID
+     - `X-User-Email`: Authenticated User Email
+     - `X-User-Role`: User Role (`ROLE_CANDIDATE`, `ROLE_COMPANY`, etc.)
+
+4. **Internal Service-to-Service Security (`ApiKeyFilter`)**:
+   - Direct internal service calls authenticate via `X-API-KEY` header generated by `auth-service`.
+
+---
+
+##  API Gateway Route Matrix
+
+| Downstream Service | Path Pattern | Gateway Port | Target URL | Protected by JWT |
+|---|---|---|---|---|
+| **Auth Service** | `/api/auth/register`, `/api/auth/login` | `8080` | `http://auth-service:8081` |  No (Public) |
+| **Auth Service** | `/api/auth/validate`, `/api/auth/users/**`, `/api/auth/api-keys` | `8080` | `http://auth-service:8081` |  Yes |
+| **Candidate Service** | `/api/candidates/**` | `8080` | `http://candidate-service:8082` | Yes |
+| **Company Service** | `/api/companies/**` | `8080` | `http://company-service:8083` | Yes |
+| **Job Service** | `/api/jobs/**` | `8080` | `http://job-service:8084` |  Yes |
+| **AI Resume Service** | `/api/resume/**`, `/api/ai/**` | `8080` | `http://ai-service:8085` | Yes |
+
+---
+
+##  Prerequisites
+
+- **Java JDK 17 or 21**
+- **Apache Maven 3.9+**
+- **Docker & Docker Compose**
+- **MySQL 8.0+** (if running locally without Docker)
+- **Node.js 18+** (for frontend)
+- **Python 3.10+** (for AI service)
+
+---
+
+##  Quick Start
+
+### 1. Run Everything with Docker Compose
+```bash
+docker-compose up --build -d
+```
+All databases, microservices, the API gateway, and the frontend will start up automatically.
+
+### 2. Run Auth Service & API Gateway Locally
+
+#### Step 1: Start MySQL Database
+```sql
+CREATE DATABASE IF NOT EXISTS auth_db;
+```
+
+#### Step 2: Run Auth Service
+```bash
+cd auth-service
+mvn clean spring-boot:run
+```
+> Auth Service will run at: `http://localhost:8081`
+> Swagger UI documentation: `http://localhost:8081/swagger-ui.html`
+
+#### Step 3: Run API Gateway
+```bash
+cd api-gateway
+mvn clean spring-boot:run
+```
+> API Gateway will run at: `http://localhost:8080`
+
+---
+
+##  OpenAPI / Swagger Documentation
+
+- **Auth Service**: `http://localhost:8081/swagger-ui.html` or through Gateway: `http://localhost:8080/api/auth/swagger-ui.html`
+- **OpenAPI JSON**: `http://localhost:8081/v3/api-docs`
+
+---
+
+##  Git Branching Strategy
+
+- `main` - Stable production-ready code.
+- `develop` - Primary development integration branch.
+- `feature/member1-gateway-auth` - Member 1 work (API Gateway, Auth Service, Docker).
+- `feature/member2-candidate-service` - Member 2 work (Candidate Service).
+- `feature/member3-company-service` - Member 3 work (Company Service).
+- `feature/member4-job-service` - Member 4 work (Job Service).
+- `feature/member5-ai-frontend` - Member 5 work (AI Service + Frontend).
+
+---
+
+##  License & Team
+University Project — AI-Recruitment-Platform Team 

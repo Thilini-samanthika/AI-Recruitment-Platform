@@ -1,0 +1,245 @@
+services:
+  # =========================================================================
+  # 1. DATABASE LAYER
+  # =========================================================================
+
+  # Auth Service Database (Member 1)
+  auth-db:
+    image: mysql:8.0
+    container_name: auth-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: auth_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - auth_db_data:/var/lib/mysql
+    networks:
+      - recruitment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Candidate Service Database (Member 2)
+  candidate-db:
+    image: mysql:8.0
+    container_name: candidate-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: candidate_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"
+    volumes:
+      - candidate_db_data:/var/lib/mysql
+    networks:
+      - recruitment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Company Service Database (Member 3)
+  company-db:
+    image: mysql:8.0
+    container_name: company-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: company_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3308:3306"
+    volumes:
+      - company_db_data:/var/lib/mysql
+    networks:
+      - recruitment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Job Service Database (Member 4)
+  job-db:
+    image: mysql:8.0
+    container_name: job-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: job_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3309:3306"
+    volumes:
+      - job_db_data:/var/lib/mysql
+    networks:
+      - recruitment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =========================================================================
+  # 2. CORE BACKEND SERVICES (Member 1)
+  # =========================================================================
+
+  # Auth Service (Member 1)
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - DB_HOST=auth-db
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - recruitment-network
+
+  # API Gateway (Member 1)
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:8081
+      - CANDIDATE_SERVICE_URL=http://candidate-service:8082
+      - COMPANY_SERVICE_URL=http://company-service:8083
+      - JOB_SERVICE_URL=http://job-service:8084
+      - AI_SERVICE_URL=http://ai-service:8085
+      - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
+    depends_on:
+      - auth-service
+    networks:
+      - recruitment-network
+
+  # =========================================================================
+  # 3. DOWNSTREAM MICROSERVICES (Members 2, 3, 4, 5)
+  # =========================================================================
+
+  # Candidate Service (Member 2)
+  candidate-service:
+    build:
+      context: ./candidate-service
+      dockerfile: Dockerfile
+    container_name: candidate-service
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      - DB_HOST=candidate-db
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    depends_on:
+      candidate-db:
+        condition: service_healthy
+    networks:
+      - recruitment-network
+    profiles: ["services", "all"]
+
+  # Company Service (Member 3)
+  company-service:
+    build:
+      context: ./company-service
+      dockerfile: Dockerfile
+    container_name: company-service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      - DB_HOST=company-db
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    depends_on:
+      company-db:
+        condition: service_healthy
+    networks:
+      - recruitment-network
+    profiles: ["services", "all"]
+
+  # Job Service (Member 4)
+  job-service:
+    build:
+      context: ./job-service
+      dockerfile: Dockerfile
+    container_name: job-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      - DB_HOST=job-db
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+    depends_on:
+      job-db:
+        condition: service_healthy
+    networks:
+      - recruitment-network
+    profiles: ["services", "all"]
+
+  # AI Resume Service (Member 5)
+  ai-service:
+    build:
+      context: ./ai-resume-service
+      dockerfile: Dockerfile
+    container_name: ai-service
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    networks:
+      - recruitment-network
+    profiles: ["services", "all"]
+
+  # Frontend UI (Member 5)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - REACT_APP_API_URL=http://localhost:8080
+    depends_on:
+      - api-gateway
+    networks:
+      - recruitment-network
+    profiles: ["frontend", "all"]
+
+# =========================================================================
+# NETWORKS & VOLUMES
+# =========================================================================
+networks:
+  recruitment-network:
+    driver: bridge
+
+volumes:
+  auth_db_data:
+    driver: local
+  candidate_db_data:
+    driver: local
+  company_db_data:
+    driver: local
+  job_db_data:
+    driver: local
