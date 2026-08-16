@@ -1,5 +1,30 @@
-# Job Service Dockerfile (Member 4)
-FROM eclipse-temurin:17-jre-alpine
+# Stage 1: Build stage
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS builder
+
+WORKDIR /build
+
+# Cache dependencies
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+
+# Copy source code and build package
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+# Stage 2: Minimal Runtime stage
+FROM eclipse-temurin:21-jre-alpine
+
 WORKDIR /app
-# Placeholder / Stub container for Member 4 development
-CMD ["sh", "-c", "echo 'Job Service starting on port 8084...' && while true; do sleep 3600; done"]
+
+# Add non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
+
+# Copy jar from builder
+COPY --from=builder /build/target/*.jar app.jar
+
+EXPOSE 8084
+
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
