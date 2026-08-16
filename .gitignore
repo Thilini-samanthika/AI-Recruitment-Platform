@@ -1,0 +1,52 @@
+# ===== Maven / Java =====
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+
+# ===== IDE =====
+.idea/
+*.iml
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+bin/
+
+# ===== OS files =====
+.DS_Store
+Thumbs.db
+
+# ===== Environment / secrets =====
+.env
+*.env
+application-local.properties
+application-local.yml
+
+# ===== Node / Frontend (if applicable) =====
+node_modules/
+dist/
+build/
+.npm/
+.env.local
+
+# ===== Docker =====
+*.pid
+
+# ===== Logs =====
+logs/
+*.log
+
+# ===== Python (for ai-service) =====
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# ===== Jupyter Notebooks =====
+.ipynb_checkpoints/
