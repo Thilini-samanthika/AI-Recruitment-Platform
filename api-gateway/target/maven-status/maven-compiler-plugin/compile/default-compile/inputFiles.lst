@@ -1,0 +1,6 @@
+C:\Users\DELL\OneDrive\Desktop\AI-Recruitment-Platform\api-gateway\src\main\java\com\recruitment\gateway\ApiGatewayApplication.java
+C:\Users\DELL\OneDrive\Desktop\AI-Recruitment-Platform\api-gateway\src\main\java\com\recruitment\gateway\config\CorsConfig.java
+C:\Users\DELL\OneDrive\Desktop\AI-Recruitment-Platform\api-gateway\src\main\java\com\recruitment\gateway\exception\GatewayExceptionHandler.java
+C:\Users\DELL\OneDrive\Desktop\AI-Recruitment-Platform\api-gateway\src\main\java\com\recruitment\gateway\filter\ApiKeyFilter.java
+C:\Users\DELL\OneDrive\Desktop\AI-Recruitment-Platform\api-gateway\src\main\java\com\recruitment\gateway\filter\JwtAuthFilter.java
+C:\Users\DELL\OneDrive\Desktop\AI-Recruitment-Platform\api-gateway\src\main\java\com\recruitment\gateway\security\JwtUtil.java
