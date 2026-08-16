@@ -1,5 +1,23 @@
-# Frontend Dockerfile (Member 5)
-FROM node:20-alpine
+# Frontend Dockerfile
+FROM node:20-alpine AS builder
+
 WORKDIR /app
-# Placeholder / Stub container for Member 5 Frontend development
-CMD ["sh", "-c", "echo 'Frontend container starting on port 3000...' && while true; do sleep 3600; done"]
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+# Lightweight static file server
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN npm install -g serve
+
+COPY --from=builder /app/dist ./dist
+
+EXPOSE 3000
+
+CMD ["serve", "-s", "dist", "-l", "3000"]
