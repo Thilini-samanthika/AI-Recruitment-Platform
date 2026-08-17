@@ -83,6 +83,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # AI Resume Service Database (Member 5)
+  ai-db:
+    image: mysql:8.0
+    container_name: ai-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ai_db
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3310:3306"
+    volumes:
+      - ai_db_data:/var/lib/mysql
+    networks:
+      - recruitment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # =========================================================================
   # 2. CORE BACKEND SERVICES (Member 1)
   # =========================================================================
@@ -199,12 +219,21 @@ services:
   # AI Resume Service (Member 5)
   ai-service:
     build:
-      context: ./ai-resume-service
+      context: ./ai-service
       dockerfile: Dockerfile
     container_name: ai-service
     restart: unless-stopped
     ports:
       - "8085:8085"
+    environment:
+      - DB_HOST=ai-db
+      - DB_PORT=3306
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - AI_SERVICE_KEY=ai-service-secret-key-12345
+    depends_on:
+      ai-db:
+        condition: service_healthy
     networks:
       - recruitment-network
     profiles: ["services", "all"]
@@ -242,4 +271,6 @@ volumes:
   company_db_data:
     driver: local
   job_db_data:
+    driver: local
+  ai_db_data:
     driver: local
