@@ -1,4 +1,4 @@
-# Frontend Dockerfile
+# Stage 1: Build static assets
 FROM node:20-alpine AS builder
 
 WORKDIR /app
@@ -9,15 +9,15 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Lightweight static file server
-FROM node:20-alpine
+# Stage 2: Production Nginx Static Server
+FROM nginx:alpine
 
-WORKDIR /app
+# Copy custom Nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-RUN npm install -g serve
-
-COPY --from=builder /app/dist ./dist
+# Copy build artifacts to Nginx docroot
+COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 3000
 
-CMD ["serve", "-s", "dist", "-l", "3000"]
+CMD ["nginx", "-g", "daemon off;"]

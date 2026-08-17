@@ -38,7 +38,7 @@ spring:
         - id: ai-resume-service
           uri: ${AI_SERVICE_URL:http://localhost:8085}
           predicates:
-            - Path=/api/resume/**, /api/ai/**
+            - Path=/api/resume/**, /api/match/**, /api/recommendations/**, /api/ai/**
 
 # JWT Secret Configuration for Gateway Validation
 jwt:

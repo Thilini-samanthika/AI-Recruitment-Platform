@@ -1,20 +1,43 @@
 import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Navbar from './components/Navbar';
+import AuthModal from './components/AuthModal';
+import DashboardOverview from './components/DashboardOverview';
+import ResumeUploadView from './components/ResumeUploadView';
+import AiRecommendationView from './components/AiRecommendationView';
+import JobDirectory from './components/JobDirectory';
+import PlatformArchitecture from './components/PlatformArchitecture';
+
+// Member 3 Components
 import CompanyDashboard from './components/CompanyDashboard';
 import CompanyDirectory from './components/CompanyDirectory';
 import RegisterCompanyModal from './components/RegisterCompanyModal';
+
+// Member 2 Components
 import CandidateDashboard from './components/CandidateDashboard';
 import CandidateDirectory from './components/CandidateDirectory';
-import CompanyServiceInfo from './components/CompanyServiceInfo';
+
+// Services
 import { companyApi } from './services/companyApi';
 import { candidateApi } from './services/candidateApi';
+import { aiApi } from './services/aiApi';
+import { jobApi } from './services/jobApi';
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState('company-dashboard');
+function MainAppContent() {
+  const { user, isAuthModalOpen, authModalMode, closeAuthModal } = useAuth();
+
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [companies, setCompanies] = useState([]);
   const [currentCompany, setCurrentCompany] = useState(null);
   const [candidateProfile, setCandidateProfile] = useState(null);
   const [candidates, setCandidates] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [resumes, setResumes] = useState([]);
+
+  // Cross-component workflow state
+  const [matchSelectedResume, setMatchSelectedResume] = useState(null);
+  const [matchSelectedJob, setMatchSelectedJob] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState('');
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -27,19 +50,27 @@ export default function App() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // 1. Load companies
+      // 1. Load companies (Member 3)
       const compRes = await companyApi.listCompanies();
       if (compRes.success && compRes.data && compRes.data.length > 0) {
         setCompanies(compRes.data);
         setCurrentCompany(compRes.data[0]);
       }
 
-      // 2. Load candidate data
-      const candProfRes = await candidateApi.getProfile(1);
+      // 2. Load candidate data (Member 2)
+      const candProfRes = await candidateApi.getProfile(user?.candidateId || 1);
       if (candProfRes.success) setCandidateProfile(candProfRes.data);
 
       const candListRes = await candidateApi.listCandidates();
       if (candListRes.success) setCandidates(candListRes.data);
+
+      // 3. Load jobs (Member 4)
+      const jobRes = await jobApi.listJobs();
+      if (jobRes.success && jobRes.data) setJobs(jobRes.data);
+
+      // 4. Load resumes (Member 5)
+      const resumeRes = await aiApi.getResumesByCandidate(user?.candidateId || 1);
+      if (resumeRes.success && resumeRes.data) setResumes(resumeRes.data);
     } catch (err) {
       console.error('Failed to load initial data:', err);
     } finally {
@@ -49,10 +80,23 @@ export default function App() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
+
+  // Action: Trigger Job Match from Resume Studio
+  const handleMatchFromResumeStudio = (resume) => {
+    setMatchSelectedResume(resume);
+    setActiveTab('ai-recommendations');
+    showToast(`Ready to match '${resume.fileName || 'Resume'}' against target jobs`);
+  };
+
+  // Action: Trigger Match from Job Directory
+  const handleMatchFromJobDirectory = (job) => {
+    setMatchSelectedJob(job);
+    setActiveTab('ai-recommendations');
+    showToast(`Ready to match against '${job.title}'`);
+  };
 
   // --- Company Service Actions (Member 3) ---
-
   const handleUpdateCompany = async (updateData) => {
     if (!currentCompany) return;
     const res = await companyApi.updateCompany(currentCompany.id, updateData);
@@ -101,7 +145,6 @@ export default function App() {
   };
 
   // --- Candidate Service Actions (Member 2) ---
-
   const handleUpdateCandidateProfile = async (formData) => {
     if (!candidateProfile) return;
     const res = await candidateApi.updateProfile(candidateProfile.id, formData);
@@ -199,11 +242,47 @@ export default function App() {
             <div className="avatar-wrapper" style={{ margin: '0 auto 1.5rem', animation: 'pulse 1.5s infinite' }}>
               &bull;
             </div>
-            <h2>Loading AI Recruitment Platform Services...</h2>
+            <h2>Initializing AI Recruitment Platform Mesh...</h2>
           </div>
         ) : (
           <>
-            {/* Member 3: Company Dashboard Tab */}
+            {/* Tab 1: Unified Platform Dashboard */}
+            {activeTab === 'dashboard' && (
+              <DashboardOverview
+                onNavigate={setActiveTab}
+                totalJobs={jobs.length || 4}
+                totalCompanies={companies.length || 3}
+                totalCandidates={candidates.length || 4}
+                resumesCount={resumes.length || 1}
+              />
+            )}
+
+            {/* Tab 2: Job Catalog & Applications (Member 4 Integration) */}
+            {activeTab === 'jobs' && (
+              <JobDirectory
+                onMatchJobWithResume={handleMatchFromJobDirectory}
+                onShowToast={showToast}
+              />
+            )}
+
+            {/* Tab 3: AI Resume Studio & NLP Parser (Member 5 Lead) */}
+            {activeTab === 'ai-resume' && (
+              <ResumeUploadView
+                onMatchJob={handleMatchFromResumeStudio}
+                onShowToast={showToast}
+              />
+            )}
+
+            {/* Tab 4: AI Matching & Recommendations (Member 5 Lead) */}
+            {activeTab === 'ai-recommendations' && (
+              <AiRecommendationView
+                preselectedResume={matchSelectedResume}
+                preselectedJob={matchSelectedJob}
+                onShowToast={showToast}
+              />
+            )}
+
+            {/* Tab 5: Company Management (Member 3) */}
             {activeTab === 'company-dashboard' && (
               <CompanyDashboard
                 company={currentCompany}
@@ -214,7 +293,6 @@ export default function App() {
               />
             )}
 
-            {/* Member 3: Company Directory Tab */}
             {activeTab === 'company-directory' && (
               <CompanyDirectory
                 companies={companies}
@@ -223,7 +301,7 @@ export default function App() {
               />
             )}
 
-            {/* Member 2: Candidate Portal Tab */}
+            {/* Tab 6: Candidate Portal (Member 2) */}
             {activeTab === 'candidate-profile' && candidateProfile && (
               <CandidateDashboard
                 profile={candidateProfile}
@@ -237,7 +315,6 @@ export default function App() {
               />
             )}
 
-            {/* Member 2: Candidate Directory Tab */}
             {activeTab === 'candidate-directory' && (
               <CandidateDirectory
                 candidates={candidates}
@@ -245,13 +322,20 @@ export default function App() {
               />
             )}
 
-            {/* Member 3 Microservice Architecture & API Explorer */}
+            {/* Tab 7: 5-Member Microservice Architecture & API Explorer */}
             {activeTab === 'api-info' && (
-              <CompanyServiceInfo />
+              <PlatformArchitecture />
             )}
           </>
         )}
       </main>
+
+      {/* Global Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={closeAuthModal}
+        initialMode={authModalMode}
+      />
 
       {/* Global Modals */}
       <RegisterCompanyModal
@@ -268,5 +352,13 @@ export default function App() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <MainAppContent />
+    </AuthProvider>
   );
 }
