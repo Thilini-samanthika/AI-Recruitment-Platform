@@ -1,13 +1,13 @@
 package com.recruitment.company.service;
 
 import com.recruitment.company.dto.*;
-import com.recruitment.company.entity.Company;
-import com.recruitment.company.entity.CompanyProfile;
+import com.recruitment.company.entity.*;
 import com.recruitment.company.exception.DuplicateResourceException;
 import com.recruitment.company.exception.ResourceNotFoundException;
 import com.recruitment.company.exception.UnauthorizedException;
-import com.recruitment.company.repository.CompanyProfileRepository;
 import com.recruitment.company.repository.CompanyRepository;
+import com.recruitment.company.repository.DepartmentRepository;
+import com.recruitment.company.repository.RecruiterRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,7 +30,10 @@ class CompanyServiceTest {
     private CompanyRepository companyRepository;
 
     @Mock
-    private CompanyProfileRepository companyProfileRepository;
+    private DepartmentRepository departmentRepository;
+
+    @Mock
+    private RecruiterRepository recruiterRepository;
 
     @InjectMocks
     private CompanyServiceImpl companyService;
@@ -41,7 +44,6 @@ class CompanyServiceTest {
     @BeforeEach
     void setUp() {
         sampleProfile = CompanyProfile.builder()
-                .id(1L)
                 .industry("Information Technology")
                 .companySize("51-200")
                 .website("https://acmecorp.com")
@@ -50,18 +52,19 @@ class CompanyServiceTest {
                 .build();
 
         sampleCompany = Company.builder()
-                .id(1L)
+                .id("66c25a1f2b3e8c0012345678")
                 .userId(100L)
                 .companyName("Acme Technologies Inc.")
                 .email("contact@acmecorp.com")
                 .phone("+1 (555) 234-5678")
                 .address("100 Innovation Way, San Francisco, CA")
                 .profile(sampleProfile)
+                .verification(VerificationDetails.builder()
+                        .status(VerificationStatus.UNVERIFIED)
+                        .build())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
-
-        sampleProfile.setCompany(sampleCompany);
     }
 
     @Test
@@ -78,14 +81,27 @@ class CompanyServiceTest {
         when(companyRepository.existsByUserId(100L)).thenReturn(false);
         when(companyRepository.save(any(Company.class))).thenReturn(sampleCompany);
 
-        CompanyResponse response = companyService.registerCompany(request);
+        CompanyResponse response = companyService.registerCompany(request, 100L, "ROLE_COMPANY");
 
         assertNotNull(response);
-        assertEquals(1L, response.getId());
+        assertEquals("66c25a1f2b3e8c0012345678", response.getId());
         assertEquals("Acme Technologies Inc.", response.getCompanyName());
         assertEquals("contact@acmecorp.com", response.getEmail());
         assertEquals(100L, response.getUserId());
         verify(companyRepository, times(1)).save(any(Company.class));
+    }
+
+    @Test
+    void shouldRejectCompanyRegistrationWhenRoleIsCandidate() {
+        CreateCompanyRequest request = CreateCompanyRequest.builder()
+                .userId(100L)
+                .companyName("Acme Technologies Inc.")
+                .email("contact@acmecorp.com")
+                .build();
+
+        assertThrows(UnauthorizedException.class, () ->
+                companyService.registerCompany(request, 100L, "ROLE_CANDIDATE"));
+        verify(companyRepository, never()).save(any(Company.class));
     }
 
     @Test
@@ -98,7 +114,7 @@ class CompanyServiceTest {
 
         when(companyRepository.existsByEmail("contact@acmecorp.com")).thenReturn(true);
 
-        assertThrows(DuplicateResourceException.class, () -> companyService.registerCompany(request));
+        assertThrows(DuplicateResourceException.class, () -> companyService.registerCompany(request, 100L, "ROLE_COMPANY"));
         verify(companyRepository, never()).save(any(Company.class));
     }
 
@@ -113,7 +129,7 @@ class CompanyServiceTest {
         when(companyRepository.existsByEmail("contact@acmecorp.com")).thenReturn(false);
         when(companyRepository.existsByUserId(100L)).thenReturn(true);
 
-        assertThrows(DuplicateResourceException.class, () -> companyService.registerCompany(request));
+        assertThrows(DuplicateResourceException.class, () -> companyService.registerCompany(request, 100L, "ROLE_COMPANY"));
         verify(companyRepository, never()).save(any(Company.class));
     }
 
@@ -130,20 +146,20 @@ class CompanyServiceTest {
 
     @Test
     void shouldGetCompanyById() {
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(sampleCompany));
+        when(companyRepository.findById("66c25a1f2b3e8c0012345678")).thenReturn(Optional.of(sampleCompany));
 
-        CompanyResponse response = companyService.getCompanyById(1L);
+        CompanyResponse response = companyService.getCompanyById("66c25a1f2b3e8c0012345678");
 
         assertNotNull(response);
-        assertEquals(1L, response.getId());
+        assertEquals("66c25a1f2b3e8c0012345678", response.getId());
         assertEquals("Acme Technologies Inc.", response.getCompanyName());
     }
 
     @Test
     void shouldThrowNotFoundWhenCompanyDoesNotExist() {
-        when(companyRepository.findById(999L)).thenReturn(Optional.empty());
+        when(companyRepository.findById("non-existent-id")).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> companyService.getCompanyById(999L));
+        assertThrows(ResourceNotFoundException.class, () -> companyService.getCompanyById("non-existent-id"));
     }
 
     @Test
@@ -165,10 +181,10 @@ class CompanyServiceTest {
                 .address("200 Tech Blvd, San Jose, CA")
                 .build();
 
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(sampleCompany));
+        when(companyRepository.findById("66c25a1f2b3e8c0012345678")).thenReturn(Optional.of(sampleCompany));
         when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CompanyResponse response = companyService.updateCompany(1L, updateReq, 100L, "ROLE_COMPANY");
+        CompanyResponse response = companyService.updateCompany("66c25a1f2b3e8c0012345678", updateReq, 100L, "ROLE_COMPANY");
 
         assertNotNull(response);
         assertEquals("Acme Global Tech", response.getCompanyName());
@@ -181,10 +197,25 @@ class CompanyServiceTest {
                 .companyName("Acme Global Tech")
                 .build();
 
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(sampleCompany));
+        when(companyRepository.findById("66c25a1f2b3e8c0012345678")).thenReturn(Optional.of(sampleCompany));
 
         assertThrows(UnauthorizedException.class, () ->
-                companyService.updateCompany(1L, updateReq, 999L, "ROLE_COMPANY"));
+                companyService.updateCompany("66c25a1f2b3e8c0012345678", updateReq, 999L, "ROLE_COMPANY"));
+    }
+
+    @Test
+    void shouldAllowAdminToUpdateAnyCompany() {
+        UpdateCompanyRequest updateReq = UpdateCompanyRequest.builder()
+                .companyName("Acme Admin Override")
+                .build();
+
+        when(companyRepository.findById("66c25a1f2b3e8c0012345678")).thenReturn(Optional.of(sampleCompany));
+        when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CompanyResponse response = companyService.updateCompany("66c25a1f2b3e8c0012345678", updateReq, 999L, "ROLE_ADMIN");
+
+        assertNotNull(response);
+        assertEquals("Acme Admin Override", response.getCompanyName());
     }
 
     @Test
@@ -197,10 +228,10 @@ class CompanyServiceTest {
                 .logoUrl("https://images.unsplash.com/photo-1549719386-74dfcbf7dbed")
                 .build();
 
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(sampleCompany));
-        when(companyProfileRepository.save(any(CompanyProfile.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(companyRepository.findById("66c25a1f2b3e8c0012345678")).thenReturn(Optional.of(sampleCompany));
+        when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CompanyProfileResponse response = companyService.saveOrUpdateProfile(1L, profileReq, 100L, "ROLE_COMPANY");
+        CompanyProfileResponse response = companyService.saveOrUpdateProfile("66c25a1f2b3e8c0012345678", profileReq, 100L, "ROLE_COMPANY");
 
         assertNotNull(response);
         assertEquals("Fintech", response.getIndustry());
@@ -209,11 +240,62 @@ class CompanyServiceTest {
     }
 
     @Test
-    void shouldDeleteCompanySuccessfullyWhenAuthorized() {
-        when(companyRepository.findById(1L)).thenReturn(Optional.of(sampleCompany));
+    void shouldSubmitVerificationSuccessfully() {
+        SubmitVerificationRequest req = SubmitVerificationRequest.builder()
+                .taxId("TAX-11223344")
+                .businessRegistrationNumber("REG-CA-2026-99")
+                .documentUrl("https://docs.recruitment.com/acme.pdf")
+                .build();
+
+        when(companyRepository.findById("66c25a1f2b3e8c0012345678")).thenReturn(Optional.of(sampleCompany));
+        when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        VerificationResponse response = companyService.submitVerification("66c25a1f2b3e8c0012345678", req, 100L, "ROLE_COMPANY");
+
+        assertNotNull(response);
+        assertEquals(VerificationStatus.PENDING, response.getStatus());
+        assertEquals("TAX-11223344", response.getTaxId());
+        assertEquals("REG-CA-2026-99", response.getBusinessRegistrationNumber());
+    }
+
+    @Test
+    void shouldReviewVerificationByAdmin() {
+        ReviewVerificationRequest reviewReq = ReviewVerificationRequest.builder()
+                .status(VerificationStatus.VERIFIED)
+                .reviewNotes("All incorporation records confirmed.")
+                .build();
+
+        when(companyRepository.findById("66c25a1f2b3e8c0012345678")).thenReturn(Optional.of(sampleCompany));
+        when(companyRepository.save(any(Company.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        VerificationResponse response = companyService.reviewVerification("66c25a1f2b3e8c0012345678", reviewReq, "ROLE_ADMIN", "ADMIN_1");
+
+        assertNotNull(response);
+        assertEquals(VerificationStatus.VERIFIED, response.getStatus());
+        assertEquals("All incorporation records confirmed.", response.getReviewNotes());
+        assertEquals("ADMIN_1", response.getReviewedBy());
+    }
+
+    @Test
+    void shouldRejectVerificationReviewByNonAdmin() {
+        ReviewVerificationRequest reviewReq = ReviewVerificationRequest.builder()
+                .status(VerificationStatus.VERIFIED)
+                .build();
+
+        assertThrows(UnauthorizedException.class, () ->
+                companyService.reviewVerification("66c25a1f2b3e8c0012345678", reviewReq, "ROLE_COMPANY", "100"));
+    }
+
+    @Test
+    void shouldDeleteCompanyAndCascadeToDepartmentsAndRecruiters() {
+        when(companyRepository.findById("66c25a1f2b3e8c0012345678")).thenReturn(Optional.of(sampleCompany));
+        doNothing().when(departmentRepository).deleteByCompanyId("66c25a1f2b3e8c0012345678");
+        doNothing().when(recruiterRepository).deleteByCompanyId("66c25a1f2b3e8c0012345678");
         doNothing().when(companyRepository).delete(sampleCompany);
 
-        assertDoesNotThrow(() -> companyService.deleteCompany(1L, 100L, "ROLE_COMPANY"));
+        assertDoesNotThrow(() -> companyService.deleteCompany("66c25a1f2b3e8c0012345678", 100L, "ROLE_COMPANY"));
+        verify(departmentRepository, times(1)).deleteByCompanyId("66c25a1f2b3e8c0012345678");
+        verify(recruiterRepository, times(1)).deleteByCompanyId("66c25a1f2b3e8c0012345678");
         verify(companyRepository, times(1)).delete(sampleCompany);
     }
 }

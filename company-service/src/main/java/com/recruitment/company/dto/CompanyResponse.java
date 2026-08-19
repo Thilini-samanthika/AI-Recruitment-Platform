@@ -16,8 +16,8 @@ import java.time.LocalDateTime;
 @Schema(description = "Company details response")
 public class CompanyResponse {
 
-    @Schema(description = "Company ID", example = "1")
-    private Long id;
+    @Schema(description = "Company unique ID (MongoDB ObjectId)", example = "66c25a1f2b3e8c0012345678")
+    private String id;
 
     @Schema(description = "User ID in Auth Service", example = "10")
     private Long userId;
@@ -37,6 +37,9 @@ public class CompanyResponse {
     @Schema(description = "Extended company profile")
     private CompanyProfileResponse profile;
 
+    @Schema(description = "Corporate verification details")
+    private VerificationResponse verification;
+
     @Schema(description = "Creation timestamp")
     private LocalDateTime createdAt;
 
@@ -55,6 +58,7 @@ public class CompanyResponse {
                 .phone(company.getPhone())
                 .address(company.getAddress())
                 .profile(company.getProfile() != null ? CompanyProfileResponse.fromEntity(company.getProfile()) : null)
+                .verification(company.getVerification() != null ? VerificationResponse.fromEntity(company.getVerification()) : null)
                 .createdAt(company.getCreatedAt())
                 .updatedAt(company.getUpdatedAt())
                 .build();

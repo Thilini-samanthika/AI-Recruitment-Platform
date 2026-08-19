@@ -1,0 +1,5 @@
+server:
+  port: 8083
+
+security:
+  api-key: company-service-secret-key-12345

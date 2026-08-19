@@ -12,34 +12,24 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Document(collection = "companies")
+@Document(collection = "departments")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Company {
+public class Department {
 
     @Id
     private String id;
 
-    @Indexed(unique = true)
-    private Long userId;
+    @Indexed
+    private String companyId;
 
-    private String companyName;
+    private String name;
 
-    @Indexed(unique = true)
-    private String email;
+    private String description;
 
-    private String phone;
-
-    private String address;
-
-    private CompanyProfile profile;
-
-    @Builder.Default
-    private VerificationDetails verification = VerificationDetails.builder()
-            .status(VerificationStatus.UNVERIFIED)
-            .build();
+    private String headOfDepartment;
 
     @CreatedDate
     private LocalDateTime createdAt;

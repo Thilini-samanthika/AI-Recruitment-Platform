@@ -14,12 +14,6 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Extended company profile response")
 public class CompanyProfileResponse {
 
-    @Schema(description = "Profile ID", example = "1")
-    private Long id;
-
-    @Schema(description = "Associated Company ID", example = "1")
-    private Long companyId;
-
     @Schema(description = "Industry domain", example = "Information Technology")
     private String industry;
 
@@ -40,8 +34,6 @@ public class CompanyProfileResponse {
             return null;
         }
         return CompanyProfileResponse.builder()
-                .id(profile.getId())
-                .companyId(profile.getCompany() != null ? profile.getCompany().getId() : null)
                 .industry(profile.getIndustry())
                 .companySize(profile.getCompanySize())
                 .website(profile.getWebsite())
