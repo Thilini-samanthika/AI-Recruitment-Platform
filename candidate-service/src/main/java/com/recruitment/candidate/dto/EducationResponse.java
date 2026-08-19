@@ -15,11 +15,11 @@ import java.time.LocalDate;
 @Schema(description = "Education record details response")
 public class EducationResponse {
 
-    @Schema(description = "Education record ID", example = "1")
-    private Long id;
+    @Schema(description = "Education unique ID", example = "edu-7c1a8e9f-5678")
+    private String id;
 
-    @Schema(description = "Candidate ID", example = "10")
-    private Long candidateId;
+    @Schema(description = "Candidate Profile ID", example = "66c3abc1234567890abcdef1")
+    private String candidateId;
 
     @Schema(description = "Institution name", example = "University of California, Berkeley")
     private String institution;

@@ -1,16 +1,17 @@
 package com.recruitment.candidate.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@Entity
-@Table(name = "candidate", indexes = {
-        @Index(name = "idx_candidate_user_id", columnList = "user_id")
-})
+@Document(collection = "candidates")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -19,84 +20,76 @@ import java.util.List;
 public class Candidate {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(name = "user_id", nullable = false, unique = true)
+    @Indexed(unique = true)
     private Long userId;
 
-    @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Column(name = "phone")
     private String phone;
 
-    @Column(name = "address")
     private String address;
 
-    @Column(name = "headline")
     private String headline;
 
-    @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "candidate", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Skill> skills = new ArrayList<>();
 
-    @OneToMany(mappedBy = "candidate", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Education> educations = new ArrayList<>();
 
-    @OneToMany(mappedBy = "candidate", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<Experience> experiences = new ArrayList<>();
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    // Helper methods for bidirectional relationships
+    // Helper methods for embedded subdocuments
     public void addSkill(Skill skill) {
-        skills.add(skill);
-        skill.setCandidate(this);
+        if (this.skills == null) {
+            this.skills = new ArrayList<>();
+        }
+        this.skills.add(skill);
     }
 
-    public void removeSkill(Skill skill) {
-        skills.remove(skill);
-        skill.setCandidate(null);
+    public boolean removeSkill(String skillId) {
+        if (this.skills != null && skillId != null) {
+            return this.skills.removeIf(s -> skillId.equals(s.getId()));
+        }
+        return false;
     }
 
     public void addEducation(Education education) {
-        educations.add(education);
-        education.setCandidate(this);
+        if (this.educations == null) {
+            this.educations = new ArrayList<>();
+        }
+        this.educations.add(education);
     }
 
-    public void removeEducation(Education education) {
-        educations.remove(education);
-        education.setCandidate(null);
+    public boolean removeEducation(String educationId) {
+        if (this.educations != null && educationId != null) {
+            return this.educations.removeIf(e -> educationId.equals(e.getId()));
+        }
+        return false;
     }
 
     public void addExperience(Experience experience) {
-        experiences.add(experience);
-        experience.setCandidate(this);
+        if (this.experiences == null) {
+            this.experiences = new ArrayList<>();
+        }
+        this.experiences.add(experience);
     }
 
-    public void removeExperience(Experience experience) {
-        experiences.remove(experience);
-        experience.setCandidate(null);
+    public boolean removeExperience(String experienceId) {
+        if (this.experiences != null && experienceId != null) {
+            return this.experiences.removeIf(exp -> experienceId.equals(exp.getId()));
+        }
+        return false;
     }
 }

@@ -17,8 +17,8 @@ import java.util.List;
 @Schema(description = "Candidate full profile response")
 public class CandidateResponse {
 
-    @Schema(description = "Candidate Profile ID", example = "10")
-    private Long id;
+    @Schema(description = "Candidate Profile ID (MongoDB ObjectId)", example = "66c3abc1234567890abcdef1")
+    private String id;
 
     @Schema(description = "Auth Service User ID", example = "1")
     private Long userId;

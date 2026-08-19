@@ -10,29 +10,29 @@ public interface CandidateService {
 
     List<CandidateResponse> getAllCandidates();
 
-    CandidateResponse getCandidateById(Long id);
+    CandidateResponse getCandidateById(String id);
 
     CandidateResponse getCandidateByUserId(Long userId);
 
-    CandidateResponse updateCandidate(Long id, UpdateCandidateRequest request, Long authenticatedUserId, String authenticatedRole);
+    CandidateResponse updateCandidate(String id, UpdateCandidateRequest request, Long authenticatedUserId, String authenticatedRole);
 
-    void deleteCandidate(Long id, Long authenticatedUserId, String authenticatedRole);
+    void deleteCandidate(String id, Long authenticatedUserId, String authenticatedRole);
 
-    SkillResponse addSkill(Long candidateId, SkillRequest request, Long authenticatedUserId, String authenticatedRole);
+    SkillResponse addSkill(String candidateId, SkillRequest request, Long authenticatedUserId, String authenticatedRole);
 
-    List<SkillResponse> getSkills(Long candidateId);
+    List<SkillResponse> getSkills(String candidateId);
 
-    void deleteSkill(Long candidateId, Long skillId, Long authenticatedUserId, String authenticatedRole);
+    void deleteSkill(String candidateId, String skillId, Long authenticatedUserId, String authenticatedRole);
 
-    EducationResponse addEducation(Long candidateId, EducationRequest request, Long authenticatedUserId, String authenticatedRole);
+    EducationResponse addEducation(String candidateId, EducationRequest request, Long authenticatedUserId, String authenticatedRole);
 
-    List<EducationResponse> getEducation(Long candidateId);
+    List<EducationResponse> getEducation(String candidateId);
 
-    void deleteEducation(Long candidateId, Long educationId, Long authenticatedUserId, String authenticatedRole);
+    void deleteEducation(String candidateId, String educationId, Long authenticatedUserId, String authenticatedRole);
 
-    ExperienceResponse addExperience(Long candidateId, ExperienceRequest request, Long authenticatedUserId, String authenticatedRole);
+    ExperienceResponse addExperience(String candidateId, ExperienceRequest request, Long authenticatedUserId, String authenticatedRole);
 
-    List<ExperienceResponse> getExperience(Long candidateId);
+    List<ExperienceResponse> getExperience(String candidateId);
 
-    void deleteExperience(Long candidateId, Long experienceId, Long authenticatedUserId, String authenticatedRole);
+    void deleteExperience(String candidateId, String experienceId, Long authenticatedUserId, String authenticatedRole);
 }

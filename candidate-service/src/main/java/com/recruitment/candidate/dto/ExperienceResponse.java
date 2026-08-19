@@ -15,11 +15,11 @@ import java.time.LocalDate;
 @Schema(description = "Experience record details response")
 public class ExperienceResponse {
 
-    @Schema(description = "Experience record ID", example = "1")
-    private Long id;
+    @Schema(description = "Experience unique ID", example = "exp-4b8c2d1e-9012")
+    private String id;
 
-    @Schema(description = "Candidate ID", example = "10")
-    private Long candidateId;
+    @Schema(description = "Candidate Profile ID", example = "66c3abc1234567890abcdef1")
+    private String candidateId;
 
     @Schema(description = "Name of the company", example = "Google LLC")
     private String companyName;
