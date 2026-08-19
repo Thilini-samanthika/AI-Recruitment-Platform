@@ -19,7 +19,7 @@ class JwtUtilTest {
 
     @Test
     void shouldGenerateAndValidateTokenSuccessfully() {
-        Long userId = 42L;
+        String userId = "66c3abc1234567890abcdef1";
         String email = "candidate@example.com";
         String role = "ROLE_CANDIDATE";
 

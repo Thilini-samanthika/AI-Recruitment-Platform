@@ -1,6 +1,7 @@
 package com.recruitment.gateway.filter;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
@@ -18,9 +19,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 
-@Slf4j
 @Component
 public class ApiKeyFilter implements GlobalFilter, Ordered {
+
+    private static final Logger log = LoggerFactory.getLogger(ApiKeyFilter.class);
 
     @Value("${security.internal-api-keys:}")
     private List<String> configuredApiKeys;

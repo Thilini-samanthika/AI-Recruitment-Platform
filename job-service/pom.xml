@@ -15,7 +15,7 @@
     <artifactId>job-service</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>job-service</name>
-    <description>Job Lifecycle & Application Management Service for AI Recruitment Platform</description>
+    <description>Job Lifecycle and Application Management Service for AI Recruitment Platform</description>
 
     <properties>
         <java.version>17</java.version>

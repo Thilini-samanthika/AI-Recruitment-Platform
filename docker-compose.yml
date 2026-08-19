@@ -1,104 +1,104 @@
 services:
   # =========================================================================
-  # 1. DATABASE LAYER
+  # 1. DATABASE LAYER (MongoDB 7.0 - Database-per-Service Pattern)
   # =========================================================================
 
   # Auth Service Database (Member 1)
   auth-db:
-    image: mysql:8.0
+    image: mongo:7.0
     container_name: auth-db
     restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: auth_db
-      MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3306:3306"
+      - "27017:27017"
     volumes:
-      - auth_db_data:/var/lib/mysql
+      - auth_mongo_data:/data/db
     networks:
       - recruitment-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # Candidate Service Database (Member 2)
   candidate-db:
-    image: mysql:8.0
+    image: mongo:7.0
     container_name: candidate-db
     restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: candidate_db
-      MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3307:3306"
+      - "27018:27017"
     volumes:
-      - candidate_db_data:/var/lib/mysql
+      - candidate_mongo_data:/data/db
     networks:
       - recruitment-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # Company Service Database (Member 3)
   company-db:
-    image: mysql:8.0
+    image: mongo:7.0
     container_name: company-db
     restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: company_db
-      MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3308:3306"
+      - "27019:27017"
     volumes:
-      - company_db_data:/var/lib/mysql
+      - company_mongo_data:/data/db
     networks:
       - recruitment-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # Job Service Database (Member 4)
   job-db:
-    image: mysql:8.0
+    image: mongo:7.0
     container_name: job-db
     restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: job_db
-      MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3309:3306"
+      - "27020:27017"
     volumes:
-      - job_db_data:/var/lib/mysql
+      - job_mongo_data:/data/db
     networks:
       - recruitment-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   # AI Resume Service Database (Member 5)
   ai-db:
-    image: mysql:8.0
+    image: mongo:7.0
     container_name: ai-db
     restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ai_db
-      MYSQL_ROOT_PASSWORD: root
     ports:
-      - "3310:3306"
+      - "27021:27017"
     volumes:
-      - ai_db_data:/var/lib/mysql
+      - ai_mongo_data:/data/db
     networks:
       - recruitment-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache & Rate Limiter Store (Member 1)
+  gateway-redis:
+    image: redis:7-alpine
+    container_name: gateway-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - recruitment-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -117,10 +117,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - DB_HOST=auth-db
-      - DB_PORT=3306
-      - DB_USERNAME=root
-      - DB_PASSWORD=root
+      - SPRING_DATA_MONGODB_URI=mongodb://auth-db:27017/auth_db
       - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
     depends_on:
       auth-db:
@@ -143,9 +140,14 @@ services:
       - COMPANY_SERVICE_URL=http://company-service:8083
       - JOB_SERVICE_URL=http://job-service:8084
       - AI_SERVICE_URL=http://ai-service:8085
+      - SPRING_DATA_REDIS_HOST=gateway-redis
+      - SPRING_DATA_REDIS_PORT=6379
       - JWT_SECRET=404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
     depends_on:
-      - auth-service
+      auth-service:
+        condition: service_started
+      gateway-redis:
+        condition: service_healthy
     networks:
       - recruitment-network
 
@@ -163,10 +165,7 @@ services:
     ports:
       - "8082:8082"
     environment:
-      - DB_HOST=candidate-db
-      - DB_PORT=3306
-      - DB_USERNAME=root
-      - DB_PASSWORD=root
+      - SPRING_DATA_MONGODB_URI=mongodb://candidate-db:27017/candidate_db
     depends_on:
       candidate-db:
         condition: service_healthy
@@ -184,10 +183,7 @@ services:
     ports:
       - "8083:8083"
     environment:
-      - DB_HOST=company-db
-      - DB_PORT=3306
-      - DB_USERNAME=root
-      - DB_PASSWORD=root
+      - SPRING_DATA_MONGODB_URI=mongodb://company-db:27017/company_db
     depends_on:
       company-db:
         condition: service_healthy
@@ -205,10 +201,7 @@ services:
     ports:
       - "8084:8084"
     environment:
-      - DB_HOST=job-db
-      - DB_PORT=3306
-      - DB_USERNAME=root
-      - DB_PASSWORD=root
+      - SPRING_DATA_MONGODB_URI=mongodb://job-db:27017/job_db
     depends_on:
       job-db:
         condition: service_healthy
@@ -226,10 +219,7 @@ services:
     ports:
       - "8085:8085"
     environment:
-      - DB_HOST=ai-db
-      - DB_PORT=3306
-      - DB_USERNAME=root
-      - DB_PASSWORD=root
+      - SPRING_DATA_MONGODB_URI=mongodb://ai-db:27017/ai_db
       - AI_SERVICE_KEY=ai-service-secret-key-12345
     depends_on:
       ai-db:
@@ -264,13 +254,13 @@ networks:
     driver: bridge
 
 volumes:
-  auth_db_data:
+  auth_mongo_data:
     driver: local
-  candidate_db_data:
+  candidate_mongo_data:
     driver: local
-  company_db_data:
+  company_mongo_data:
     driver: local
-  job_db_data:
+  job_mongo_data:
     driver: local
-  ai_db_data:
+  ai_mongo_data:
     driver: local

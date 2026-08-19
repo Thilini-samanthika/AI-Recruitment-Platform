@@ -1,6 +1,7 @@
 package com.recruitment.gateway.exception;
 
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -15,10 +16,11 @@ import reactor.core.publisher.Mono;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
-@Slf4j
 @Component
 @Order(-2) // High precedence exception handler
 public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GatewayExceptionHandler.class);
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
@@ -33,7 +35,13 @@ public class GatewayExceptionHandler implements ErrorWebExceptionHandler {
 
         if (ex instanceof ResponseStatusException rse) {
             status = HttpStatus.valueOf(rse.getStatusCode().value());
-            message = rse.getReason() != null ? rse.getReason() : message;
+            if (status == HttpStatus.TOO_MANY_REQUESTS) {
+                message = "Too Many Requests - Rate limit exceeded. Please try again later.";
+            } else if (status == HttpStatus.NOT_FOUND) {
+                message = "Requested endpoint or microservice route not found";
+            } else {
+                message = rse.getReason() != null ? rse.getReason() : message;
+            }
         } else if (ex.getMessage() != null && ex.getMessage().contains("Connection refused")) {
             status = HttpStatus.SERVICE_UNAVAILABLE;
             message = "The requested microservice is currently offline or unreachable";

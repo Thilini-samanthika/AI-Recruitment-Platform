@@ -28,4 +28,13 @@ public class RegisterRequest {
 
     @Schema(description = "User role (ROLE_CANDIDATE, ROLE_COMPANY, ROLE_ADMIN)", example = "ROLE_CANDIDATE", defaultValue = "ROLE_CANDIDATE")
     private String role;
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+
+    public String getRole() { return role; }
+    public void setRole(String role) { this.role = role; }
 }

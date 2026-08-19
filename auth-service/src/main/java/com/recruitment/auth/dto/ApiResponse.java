@@ -28,21 +28,73 @@ public class ApiResponse<T> {
     @Builder.Default
     private Instant timestamp = Instant.now();
 
+    public boolean isSuccess() { return success; }
+    public void setSuccess(boolean success) { this.success = success; }
+
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
+
+    public T getData() { return data; }
+    public void setData(T data) { this.data = data; }
+
+    public Instant getTimestamp() { return timestamp; }
+    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+
     public static <T> ApiResponse<T> success(String message, T data) {
-        return ApiResponse.<T>builder()
-                .success(true)
-                .message(message)
-                .data(data)
-                .timestamp(Instant.now())
-                .build();
+        ApiResponse<T> resp = new ApiResponse<>();
+        resp.setSuccess(true);
+        resp.setMessage(message);
+        resp.setData(data);
+        resp.setTimestamp(Instant.now());
+        return resp;
     }
 
     public static <T> ApiResponse<T> error(String message) {
-        return ApiResponse.<T>builder()
-                .success(false)
-                .message(message)
-                .data(null)
-                .timestamp(Instant.now())
-                .build();
+        ApiResponse<T> resp = new ApiResponse<>();
+        resp.setSuccess(false);
+        resp.setMessage(message);
+        resp.setData(null);
+        resp.setTimestamp(Instant.now());
+        return resp;
+    }
+
+    public static <T> ApiResponseBuilder<T> builder() {
+        return new ApiResponseBuilder<T>();
+    }
+
+    public static class ApiResponseBuilder<T> {
+        private boolean success;
+        private String message;
+        private T data;
+        private Instant timestamp;
+
+        public ApiResponseBuilder<T> success(boolean success) {
+            this.success = success;
+            return this;
+        }
+
+        public ApiResponseBuilder<T> message(String message) {
+            this.message = message;
+            return this;
+        }
+
+        public ApiResponseBuilder<T> data(T data) {
+            this.data = data;
+            return this;
+        }
+
+        public ApiResponseBuilder<T> timestamp(Instant timestamp) {
+            this.timestamp = timestamp;
+            return this;
+        }
+
+        public ApiResponse<T> build() {
+            ApiResponse<T> resp = new ApiResponse<>();
+            resp.setSuccess(this.success);
+            resp.setMessage(this.message);
+            resp.setData(this.data);
+            resp.setTimestamp(this.timestamp != null ? this.timestamp : Instant.now());
+            return resp;
+        }
     }
 }

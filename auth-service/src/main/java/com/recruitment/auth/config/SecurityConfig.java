@@ -28,6 +28,9 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/register",
                     "/api/auth/login",
+                    "/api/auth/oauth/**",
+                    "/api/auth/refresh-token",
+                    "/api/auth/logout",
                     "/api/auth/validate",
                     "/api/auth/api-keys",
                     "/api/auth/users/**",

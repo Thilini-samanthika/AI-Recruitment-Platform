@@ -15,7 +15,7 @@
     <artifactId>ai-service</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <name>ai-service</name>
-    <description>AI Resume Parsing, Skill Extraction, Matching & Recommendation Service for AI Recruitment Platform</description>
+    <description>AI Resume Parsing, Skill Extraction, Matching and Recommendation Service for AI Recruitment Platform</description>
 
     <properties>
         <java.version>17</java.version>

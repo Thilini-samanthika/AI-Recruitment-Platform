@@ -2,11 +2,13 @@ package com.recruitment.auth.service;
 
 import com.recruitment.auth.dto.*;
 import com.recruitment.auth.entity.ApiKey;
+import com.recruitment.auth.entity.RefreshToken;
 import com.recruitment.auth.entity.Role;
 import com.recruitment.auth.entity.User;
 import com.recruitment.auth.exception.InvalidCredentialsException;
 import com.recruitment.auth.exception.UserAlreadyExistsException;
 import com.recruitment.auth.repository.ApiKeyRepository;
+import com.recruitment.auth.repository.RefreshTokenRepository;
 import com.recruitment.auth.repository.RoleRepository;
 import com.recruitment.auth.repository.UserRepository;
 import com.recruitment.auth.security.JwtUtil;
@@ -19,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -39,6 +42,9 @@ class AuthServiceTest {
     private ApiKeyRepository apiKeyRepository;
 
     @Mock
+    private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -51,7 +57,7 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        candidateRole = new Role(1L, "ROLE_CANDIDATE");
+        candidateRole = new Role("role-id-1", "ROLE_CANDIDATE");
     }
 
     @Test
@@ -67,14 +73,23 @@ class AuthServiceTest {
         when(passwordEncoder.encode("password123")).thenReturn("hashedPassword");
 
         User savedUser = User.builder()
-                .id(1L)
+                .id("user-id-1")
                 .email("test@example.com")
                 .passwordHash("hashedPassword")
                 .role(candidateRole)
+                .createdAt(Instant.now())
+                .build();
+
+        RefreshToken mockRefreshToken = RefreshToken.builder()
+                .id("rt-id-1")
+                .token("mock-refresh-token")
+                .userId("user-id-1")
+                .expiryDate(Instant.now().plusSeconds(604800))
                 .build();
 
         when(userRepository.save(any(User.class))).thenReturn(savedUser);
-        when(jwtUtil.generateToken(1L, "test@example.com", "ROLE_CANDIDATE")).thenReturn("mock-jwt-token");
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(mockRefreshToken);
+        when(jwtUtil.generateToken("user-id-1", "test@example.com", "ROLE_CANDIDATE")).thenReturn("mock-jwt-token");
         when(jwtUtil.getExpirationTime()).thenReturn(86400000L);
 
         AuthResponse response = authService.register(request);
@@ -105,15 +120,24 @@ class AuthServiceTest {
                 .build();
 
         User user = User.builder()
-                .id(2L)
+                .id("user-id-2")
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
                 .role(candidateRole)
+                .createdAt(Instant.now())
+                .build();
+
+        RefreshToken mockRefreshToken = RefreshToken.builder()
+                .id("rt-id-2")
+                .token("mock-refresh-token")
+                .userId("user-id-2")
+                .expiryDate(Instant.now().plusSeconds(604800))
                 .build();
 
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("password123", "hashedPassword")).thenReturn(true);
-        when(jwtUtil.generateToken(2L, "user@example.com", "ROLE_CANDIDATE")).thenReturn("mock-jwt-token");
+        when(refreshTokenRepository.save(any(RefreshToken.class))).thenReturn(mockRefreshToken);
+        when(jwtUtil.generateToken("user-id-2", "user@example.com", "ROLE_CANDIDATE")).thenReturn("mock-jwt-token");
         when(jwtUtil.getExpirationTime()).thenReturn(86400000L);
 
         AuthResponse response = authService.login(request);
@@ -131,7 +155,7 @@ class AuthServiceTest {
                 .build();
 
         User user = User.builder()
-                .id(2L)
+                .id("user-id-2")
                 .email("user@example.com")
                 .passwordHash("hashedPassword")
                 .role(candidateRole)
@@ -145,11 +169,12 @@ class AuthServiceTest {
 
     @Test
     void shouldGenerateApiKeySuccessfully() {
-        CreateApiKeyRequest request = new CreateApiKeyRequest("JOB_SERVICE");
+        CreateApiKeyRequest request = new CreateApiKeyRequest();
+        request.setServiceName("JOB_SERVICE");
 
         when(apiKeyRepository.save(any(ApiKey.class))).thenAnswer(invocation -> {
             ApiKey key = invocation.getArgument(0);
-            key.setId(10L);
+            key.setId("api-key-id-10");
             return key;
         });
 

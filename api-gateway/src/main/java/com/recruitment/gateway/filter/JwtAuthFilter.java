@@ -1,8 +1,8 @@
 package com.recruitment.gateway.filter;
 
 import com.recruitment.gateway.security.JwtUtil;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
@@ -21,18 +21,25 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class JwtAuthFilter implements GlobalFilter, Ordered {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
 
     private final JwtUtil jwtUtil;
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
+
+    public JwtAuthFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+    }
 
     // Whitelisted public endpoints
     private static final List<String> PUBLIC_ENDPOINTS = List.of(
             "/api/auth/register",
             "/api/auth/login",
+            "/api/auth/oauth/**",
+            "/api/auth/refresh-token",
+            "/api/auth/logout",
             "/api/auth/validate",
             "/v3/api-docs/**",
             "/swagger-ui/**",
@@ -68,7 +75,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
         }
 
         // Extract user claims
-        Long userId = jwtUtil.extractUserId(token);
+        String userId = jwtUtil.extractUserId(token);
         String email = jwtUtil.extractEmail(token);
         String role = jwtUtil.extractRole(token);
 
@@ -76,7 +83,7 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         // Mutate downstream request with enriched user identity headers
         ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                .header("X-User-Id", userId != null ? userId.toString() : "")
+                .header("X-User-Id", userId != null ? userId : "")
                 .header("X-User-Email", email != null ? email : "")
                 .header("X-User-Role", role != null ? role : "")
                 .build();
