@@ -115,7 +115,7 @@ export default function AiRecommendationView({ preselectedResume, preselectedJob
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(236, 72, 153, 0.15)', color: '#f472b6', padding: '0.2rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-            <span>⚡ Member 5: AI Matching & Recommendations</span>
+            <span> AI Matching & Recommendations</span>
             <span>&bull; /api/match</span>
           </div>
           <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0 }}>AI Job Matcher & Scorer</h2>
@@ -140,7 +140,7 @@ export default function AiRecommendationView({ preselectedResume, preselectedJob
               color: activeSubTab === 'matcher' ? '#fff' : 'var(--text-muted)'
             }}
           >
-            ⚡ Match Resume Against Job
+             Match Resume Against Job
           </button>
           <button
             className={`tab-btn ${activeSubTab === 'recommendations' ? 'active' : ''}`}
@@ -156,7 +156,7 @@ export default function AiRecommendationView({ preselectedResume, preselectedJob
               color: activeSubTab === 'recommendations' ? '#fff' : 'var(--text-muted)'
             }}
           >
-            ✨ AI Job Recommendations
+             AI Job Recommendations
           </button>
         </div>
       </div>
@@ -442,7 +442,7 @@ export default function AiRecommendationView({ preselectedResume, preselectedJob
               disabled={recLoading}
               style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem' }}
             >
-              {recLoading ? 'Refreshing...' : '🔄 Refresh AI Suggestions'}
+              {recLoading ? 'Refreshing...' : ' Refresh AI Suggestions'}
             </button>
           </div>
 

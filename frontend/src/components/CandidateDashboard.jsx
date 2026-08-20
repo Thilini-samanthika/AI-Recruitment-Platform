@@ -104,7 +104,7 @@ export default function CandidateDashboard({ profile, onUpdateProfile, onAddSkil
                       title="Delete skill"
                       onClick={() => onDeleteSkill(skill.id)}
                     >
-                      ✕
+                      
                     </button>
                   </div>
                 ))}

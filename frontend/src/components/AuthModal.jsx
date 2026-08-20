@@ -164,7 +164,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     fontWeight: 600
                   }}
                 >
-                  👤 Candidate / Job Seeker
+                   Candidate / Job Seeker
                 </button>
                 <button
                   type="button"
@@ -180,7 +180,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
                     fontWeight: 600
                   }}
                 >
-                  🏢 Company / Employer
+                   Company / Employer
                 </button>
               </div>
             </div>
@@ -209,7 +209,7 @@ export default function AuthModal({ isOpen, onClose, initialMode = 'login' }) {
         {/* Quick Demo Login Preset Buttons */}
         <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.5rem', textAlign: 'center' }}>
-            ⚡ Quick Demo Logins (Click to autofill):
+             Quick Demo Logins (Click to autofill):
           </p>
           <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'center' }}>
             <button
