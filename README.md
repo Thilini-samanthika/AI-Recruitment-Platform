@@ -19,7 +19,7 @@ An AI-powered recruitment management system built with a microservice architectu
                     │   - Spring Cloud Gateway                                    │
                     │   - JWT Auth & Token Validation Global Filter               │
                     │   - Internal Service-to-Service API Key Filter              │
-                    │   - CORS & Centralized Error Handling                       │
+                    │   - CORS & Redis-Backed Rate Limiting                       │
                     │   - Injects X-User-Email, X-User-Role, X-User-Id Headers    │
                     └───────┬──────────────┬──────────────┬─────────────┬─────────┘
                             │              │              │             │
@@ -33,9 +33,11 @@ An AI-powered recruitment management system built with a microservice architectu
         ▼                  ▼               ▼              ▼                           ▼
 ┌───────────────┐   ┌──────────────┐ ┌───────────┐ ┌─────────────┐            ┌───────────────┐
 │ auth_db       │   │ candidate_db │ │company_db │ │ job_db      │            │ ai_db         │
-│ (MySQL 3306)  │   │ (MySQL 3306) │ │(MySQL3306)│ │(MySQL 3306) │            │ (MySQL 3306)  │
+│ (MongoDB 27017)│  │(MongoDB 27017)│ │(MongoDB27017)│(MongoDB27017)│           │(MongoDB 27017)│
 └───────────────┘   └──────────────┘ └───────────┘ └─────────────┘            └───────────────┘
 ```
+
+> The API Gateway also connects to a **Redis** container (`gateway-redis`) which backs its request-rate-limiter. Each microservice above uses its own dedicated MongoDB database — the *database-per-service* pattern — so no data is shared directly between services at the storage layer.
 
 ---
 
@@ -43,11 +45,11 @@ An AI-powered recruitment management system built with a microservice architectu
 
 | Member | Role & Assigned Module | Port | Technology Stack | Responsibilities |
 |---|---|---|---|---|
-| **Member 1** | **API Gateway + Auth Service + Integration Lead** | `8080` (Gateway)<br>`8081` (Auth) | Spring Cloud Gateway, Spring Boot 3.3.5, Spring Security, JWT (JJWT), MySQL, Docker | Centralized routing, JWT validation filter, API key filter, auth (register/login/validate), Docker Compose orchestration |
-| **Member 2** | **Candidate Service** | `8082` | Spring Boot, JPA, MySQL | Candidate profiles, work experience, skill management, education records |
-| **Member 3** | **Company Service** | `8083` | Spring Boot, JPA, MySQL | Company profile, recruiter management, department structure |
-| **Member 4** | **Job Service** | `8084` | Spring Boot, JPA, MySQL | Job postings, requirements, application tracking, status workflows |
-| **Member 5** | **AI Resume Service + Frontend Lead** | `8085` (AI)<br>`3000` (UI) | Spring Boot, Apache PDFBox, Apache POI, MySQL / React 18, Vite | Resume upload & parsing (PDF/DOCX), skill extraction, candidate-job matching & recommendation, unified frontend UI |
+| **Member 1** | **API Gateway + Auth Service + Integration Lead** | `8080` (Gateway)<br>`8081` (Auth) | Spring Cloud Gateway, Spring Boot 3.3.5, Spring Security, JWT (JJWT), MongoDB, Redis, Docker | Centralized routing, JWT validation filter, API key filter, Redis-backed rate limiting, auth (register/login/validate), Docker Compose orchestration |
+| **Member 2** | **Candidate Service** | `8082` | Spring Boot, Spring Data MongoDB | Candidate profiles, work experience, skill management, education records |
+| **Member 3** | **Company Service** | `8083` | Spring Boot, Spring Data MongoDB | Company profile, recruiter management, department structure |
+| **Member 4** | **Job Service** | `8084` | Spring Boot, Spring Data MongoDB | Job postings, requirements, application tracking, status workflows |
+| **Member 5** | **AI Resume Service + Frontend Lead** | `8085` (AI)<br>`3000` (UI) | Spring Boot, Apache PDFBox, Apache POI, MongoDB / React 18, Vite | Resume upload & parsing (PDF/DOCX), skill extraction, candidate-job matching & recommendation, unified frontend UI |
 
 ---
 
@@ -94,7 +96,8 @@ An AI-powered recruitment management system built with a microservice architectu
 - **Java JDK 17 or 21**
 - **Apache Maven 3.9+**
 - **Docker & Docker Compose**
-- **MySQL 8.0+** (only needed if running services locally without Docker)
+- **MongoDB 7.0+** (only needed if running services locally without Docker)
+- **Redis 7+** (only needed if running the API Gateway locally without Docker — used for rate limiting)
 - **Node.js 18+** (for the frontend)
 
 ---
@@ -109,9 +112,11 @@ All databases, microservices, the API gateway, and the frontend start up automat
 
 ### 2. Run a service locally (example: Auth Service + Gateway)
 
-**Step 1 — start MySQL and create the database**
-```sql
-CREATE DATABASE IF NOT EXISTS auth_db;
+**Step 1 — start MongoDB**
+```bash
+# MongoDB creates the auth_db database automatically on first write —
+# no manual CREATE DATABASE step is needed. Just make sure an instance is running:
+mongod --dbpath /path/to/data
 ```
 
 **Step 2 — run Auth Service**
@@ -122,14 +127,19 @@ mvn clean spring-boot:run
 > Auth Service: `http://localhost:8081`
 > Swagger UI: `http://localhost:8081/swagger-ui.html`
 
-**Step 3 — run API Gateway**
+**Step 3 — start Redis** (required by the Gateway's rate limiter)
+```bash
+redis-server
+```
+
+**Step 4 — run API Gateway**
 ```bash
 cd api-gateway
 mvn clean spring-boot:run
 ```
 > API Gateway: `http://localhost:8080`
 
-**Step 4 — run the frontend**
+**Step 5 — run the frontend**
 ```bash
 cd frontend
 npm install
