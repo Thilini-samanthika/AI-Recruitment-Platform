@@ -17,28 +17,28 @@ import java.time.LocalDateTime;
 @Schema(description = "Job application details response")
 public class ApplicationResponse {
 
-    @Schema(description = "Application ID", example = "1")
-    private Long id;
+    @Schema(description = "Application ID (MongoDB ObjectId)", example = "66c3abc1234567890abcdef2")
+    private String id;
 
-    @Schema(description = "Job ID", example = "1")
-    private Long jobId;
+    @Schema(description = "Job ID (MongoDB ObjectId)", example = "66c3abc1234567890abcdef1")
+    private String jobId;
 
     @Schema(description = "Job Title", example = "Senior Backend Engineer")
     private String jobTitle;
 
-    @Schema(description = "Company ID", example = "1")
+    @Schema(description = "Company ID", example = "10")
     private Long companyId;
 
     @Schema(description = "Candidate ID", example = "1")
     private Long candidateId;
 
-    @Schema(description = "Application status", example = "APPLIED")
+    @Schema(description = "Application status (APPLIED, REVIEWED, SHORTLISTED, INTERVIEW, OFFERED, ACCEPTED, REJECTED, WITHDRAWN)", example = "APPLIED")
     private ApplicationStatus status;
 
-    @Schema(description = "Candidate notes / cover pitch")
+    @Schema(description = "Candidate notes / cover pitch", example = "Strong background in Spring Boot microservices")
     private String notes;
 
-    @Schema(description = "Resume URL")
+    @Schema(description = "Resume URL", example = "https://storage.googleapis.com/recruitment-resumes/cand_1_resume.pdf")
     private String resumeUrl;
 
     @Schema(description = "Application submission timestamp")
@@ -51,9 +51,9 @@ public class ApplicationResponse {
         if (application == null) return null;
         return ApplicationResponse.builder()
                 .id(application.getId())
-                .jobId(application.getJob() != null ? application.getJob().getId() : null)
-                .jobTitle(application.getJob() != null ? application.getJob().getTitle() : null)
-                .companyId(application.getJob() != null ? application.getJob().getCompanyId() : null)
+                .jobId(application.getJobId())
+                .jobTitle(application.getJobTitle())
+                .companyId(application.getCompanyId())
                 .candidateId(application.getCandidateId())
                 .status(application.getStatus())
                 .notes(application.getNotes())

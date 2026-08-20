@@ -17,19 +17,19 @@ import java.time.LocalDateTime;
 @Schema(description = "Job posting details response")
 public class JobResponse {
 
-    @Schema(description = "Job ID", example = "1")
-    private Long id;
+    @Schema(description = "Job ID (MongoDB ObjectId)", example = "66c3abc1234567890abcdef1")
+    private String id;
 
-    @Schema(description = "Company ID", example = "1")
+    @Schema(description = "Company ID posting the vacancy", example = "10")
     private Long companyId;
 
     @Schema(description = "Job title", example = "Senior Backend Engineer")
     private String title;
 
-    @Schema(description = "Full description")
+    @Schema(description = "Full description and requirements")
     private String description;
 
-    @Schema(description = "Required skills", example = "Java, Spring Boot, MySQL, Docker")
+    @Schema(description = "Required skills", example = "Java, Spring Boot, MongoDB, Docker")
     private String requiredSkills;
 
     @Schema(description = "Location", example = "San Francisco, CA / Hybrid")
@@ -44,10 +44,13 @@ public class JobResponse {
     @Schema(description = "Job status", example = "OPEN")
     private JobStatus status;
 
+    @Schema(description = "Application deadline timestamp", example = "2026-12-31T23:59:59")
+    private LocalDateTime deadline;
+
     @Schema(description = "Total number of candidates applied", example = "12")
     private Long applicationCount;
 
-    @Schema(description = "Posting timestamp")
+    @Schema(description = "Posting creation timestamp")
     private LocalDateTime postedAt;
 
     @Schema(description = "Last update timestamp")
@@ -69,6 +72,7 @@ public class JobResponse {
                 .salaryRange(job.getSalaryRange())
                 .jobType(job.getJobType())
                 .status(job.getStatus())
+                .deadline(job.getDeadline())
                 .applicationCount(applicationCount)
                 .postedAt(job.getPostedAt())
                 .updatedAt(job.getUpdatedAt())

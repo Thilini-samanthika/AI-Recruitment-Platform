@@ -13,19 +13,19 @@ public interface JobService {
 
     List<JobResponse> searchJobs(String keyword, String location, String jobType, JobStatus status);
 
-    JobResponse getJobById(Long id);
+    JobResponse getJobById(String id);
 
     List<JobResponse> getJobsByCompanyId(Long companyId);
 
-    JobResponse updateJob(Long id, UpdateJobRequest request, Long authenticatedUserId, String role);
+    JobResponse updateJob(String id, UpdateJobRequest request, Long authenticatedUserId, String role);
 
-    void deleteJob(Long id, Long authenticatedUserId, String role);
+    void deleteJob(String id, Long authenticatedUserId, String role);
 
-    ApplicationResponse applyToJob(Long jobId, ApplyJobRequest request, Long authenticatedUserId, String role);
+    ApplicationResponse applyToJob(String jobId, ApplyJobRequest request, Long authenticatedUserId, String role);
 
-    List<ApplicationResponse> getApplicationsByJobId(Long jobId, Long authenticatedUserId, String role);
+    List<ApplicationResponse> getApplicationsByJobId(String jobId, Long authenticatedUserId, String role);
 
     List<ApplicationResponse> getApplicationsByCandidateId(Long candidateId, Long authenticatedUserId, String role);
 
-    ApplicationResponse updateApplicationStatus(Long applicationId, UpdateApplicationStatusRequest request, Long authenticatedUserId, String role);
+    ApplicationResponse updateApplicationStatus(String applicationId, UpdateApplicationStatusRequest request, Long authenticatedUserId, String role);
 }
