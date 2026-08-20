@@ -16,8 +16,8 @@ import java.util.List;
 @Schema(description = "Request payload to match a resume against a job")
 public class MatchRequest {
 
-    @Schema(description = "Resume ID (optional if candidateId is provided)", example = "1")
-    private Long resumeId;
+    @Schema(description = "Resume ID (MongoDB ObjectId or Identifier, optional if candidateId is provided)", example = "66c43ab2f89a120001bc34e1")
+    private String resumeId;
 
     @Schema(description = "Candidate ID (optional if resumeId is provided)", example = "101")
     private Long candidateId;

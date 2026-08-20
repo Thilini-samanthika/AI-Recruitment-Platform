@@ -7,9 +7,11 @@ import com.recruitment.job.entity.Job;
 import com.recruitment.job.entity.JobStatus;
 import com.recruitment.job.exception.DuplicateResourceException;
 import com.recruitment.job.exception.ResourceNotFoundException;
+import com.recruitment.job.exception.UnauthorizedException;
 import com.recruitment.job.repository.ApplicationRepository;
 import com.recruitment.job.repository.JobRepository;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,39 +44,46 @@ class JobServiceTest {
     @BeforeEach
     void setUp() {
         sampleJob = Job.builder()
-                .id(1L)
+                .id("66c3abc1234567890abcdef1")
                 .companyId(10L)
                 .title("Senior Backend Engineer")
-                .description("Build microservices in Java and Spring Boot")
-                .requiredSkills("Java, Spring Boot, MySQL, Docker")
+                .description("Build microservices in Java and Spring Boot with MongoDB")
+                .requiredSkills("Java, Spring Boot, MongoDB, Docker")
                 .location("San Francisco, CA / Hybrid")
-                .salaryRange("$140k - $180k")
+                .salaryRange("$140,000 - $180,000 / yr")
                 .jobType("FULL_TIME")
                 .status(JobStatus.OPEN)
+                .deadline(LocalDateTime.now().plusDays(30))
                 .postedAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
         sampleApplication = Application.builder()
-                .id(100L)
-                .job(sampleJob)
+                .id("66c3abc1234567890abcdef2")
+                .jobId("66c3abc1234567890abcdef1")
+                .jobTitle("Senior Backend Engineer")
+                .companyId(10L)
                 .candidateId(1L)
                 .status(ApplicationStatus.APPLIED)
                 .notes("Interested in backend role")
+                .resumeUrl("https://example.com/resume.pdf")
                 .appliedAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
                 .build();
     }
 
     @Test
+    @DisplayName("Should create job successfully for authorized company")
     void shouldCreateJobSuccessfully() {
         CreateJobRequest request = CreateJobRequest.builder()
                 .companyId(10L)
                 .title("Senior Backend Engineer")
-                .description("Build microservices in Java and Spring Boot")
-                .requiredSkills("Java, Spring Boot, MySQL, Docker")
+                .description("Build microservices in Java and Spring Boot with MongoDB")
+                .requiredSkills("Java, Spring Boot, MongoDB, Docker")
                 .location("San Francisco, CA / Hybrid")
-                .salaryRange("$140k - $180k")
+                .salaryRange("$140,000 - $180,000 / yr")
                 .jobType("FULL_TIME")
+                .deadline(LocalDateTime.now().plusDays(30))
                 .build();
 
         when(jobRepository.save(any(Job.class))).thenReturn(sampleJob);
@@ -82,7 +91,7 @@ class JobServiceTest {
         JobResponse response = jobService.createJob(request, 10L, "ROLE_COMPANY");
 
         assertNotNull(response);
-        assertEquals(1L, response.getId());
+        assertEquals("66c3abc1234567890abcdef1", response.getId());
         assertEquals("Senior Backend Engineer", response.getTitle());
         assertEquals(10L, response.getCompanyId());
         assertEquals(JobStatus.OPEN, response.getStatus());
@@ -90,9 +99,24 @@ class JobServiceTest {
     }
 
     @Test
+    @DisplayName("Should reject job creation when candidate tries to post")
+    void shouldRejectJobCreationForCandidateRole() {
+        CreateJobRequest request = CreateJobRequest.builder()
+                .companyId(10L)
+                .title("Senior Backend Engineer")
+                .description("Build microservices in Java and Spring Boot with MongoDB")
+                .build();
+
+        assertThrows(UnauthorizedException.class, () ->
+                jobService.createJob(request, 1L, "ROLE_CANDIDATE"));
+        verify(jobRepository, never()).save(any(Job.class));
+    }
+
+    @Test
+    @DisplayName("Should get all jobs with application count")
     void shouldGetAllJobs() {
         when(jobRepository.findAll()).thenReturn(List.of(sampleJob));
-        when(applicationRepository.countByJobId(1L)).thenReturn(2L);
+        when(applicationRepository.countByJobId("66c3abc1234567890abcdef1")).thenReturn(2L);
 
         List<JobResponse> jobs = jobService.getAllJobs(null);
 
@@ -102,28 +126,31 @@ class JobServiceTest {
     }
 
     @Test
+    @DisplayName("Should get job by ID")
     void shouldGetJobById() {
-        when(jobRepository.findById(1L)).thenReturn(Optional.of(sampleJob));
-        when(applicationRepository.countByJobId(1L)).thenReturn(1L);
+        when(jobRepository.findById("66c3abc1234567890abcdef1")).thenReturn(Optional.of(sampleJob));
+        when(applicationRepository.countByJobId("66c3abc1234567890abcdef1")).thenReturn(1L);
 
-        JobResponse response = jobService.getJobById(1L);
+        JobResponse response = jobService.getJobById("66c3abc1234567890abcdef1");
 
         assertNotNull(response);
         assertEquals("Senior Backend Engineer", response.getTitle());
     }
 
     @Test
+    @DisplayName("Should throw ResourceNotFoundException when job does not exist")
     void shouldThrowNotFoundWhenJobDoesNotExist() {
-        when(jobRepository.findById(999L)).thenReturn(Optional.empty());
+        when(jobRepository.findById("nonexistent")).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, () -> jobService.getJobById(999L));
+        assertThrows(ResourceNotFoundException.class, () -> jobService.getJobById("nonexistent"));
     }
 
     @Test
+    @DisplayName("Should search jobs using criteria")
     void shouldSearchJobs() {
         when(jobRepository.searchJobs("Backend", "San Francisco", "FULL_TIME", JobStatus.OPEN))
                 .thenReturn(List.of(sampleJob));
-        when(applicationRepository.countByJobId(1L)).thenReturn(0L);
+        when(applicationRepository.countByJobId("66c3abc1234567890abcdef1")).thenReturn(0L);
 
         List<JobResponse> results = jobService.searchJobs("Backend", "San Francisco", "FULL_TIME", JobStatus.OPEN);
 
@@ -132,77 +159,141 @@ class JobServiceTest {
     }
 
     @Test
+    @DisplayName("Should update job successfully by owner")
     void shouldUpdateJob() {
         UpdateJobRequest updateReq = UpdateJobRequest.builder()
                 .title("Lead Backend Engineer")
-                .salaryRange("$160k - $200k")
+                .salaryRange("$160,000 - $200,000 / yr")
                 .status(JobStatus.OPEN)
                 .build();
 
-        when(jobRepository.findById(1L)).thenReturn(Optional.of(sampleJob));
+        when(jobRepository.findById("66c3abc1234567890abcdef1")).thenReturn(Optional.of(sampleJob));
         when(jobRepository.save(any(Job.class))).thenAnswer(i -> i.getArgument(0));
-        when(applicationRepository.countByJobId(1L)).thenReturn(0L);
+        when(applicationRepository.countByJobId("66c3abc1234567890abcdef1")).thenReturn(0L);
 
-        JobResponse response = jobService.updateJob(1L, updateReq, 10L, "ROLE_COMPANY");
+        JobResponse response = jobService.updateJob("66c3abc1234567890abcdef1", updateReq, 10L, "ROLE_COMPANY");
 
         assertNotNull(response);
         assertEquals("Lead Backend Engineer", response.getTitle());
     }
 
     @Test
-    void shouldDeleteJob() {
-        when(jobRepository.findById(1L)).thenReturn(Optional.of(sampleJob));
-        doNothing().when(jobRepository).delete(sampleJob);
+    @DisplayName("Should reject job update by unauthorized company")
+    void shouldRejectJobUpdateByDifferentCompany() {
+        UpdateJobRequest updateReq = UpdateJobRequest.builder()
+                .title("Unauthorized Title Change")
+                .build();
 
-        assertDoesNotThrow(() -> jobService.deleteJob(1L, 10L, "ROLE_COMPANY"));
-        verify(jobRepository, times(1)).delete(sampleJob);
+        when(jobRepository.findById("66c3abc1234567890abcdef1")).thenReturn(Optional.of(sampleJob));
+
+        assertThrows(UnauthorizedException.class, () ->
+                jobService.updateJob("66c3abc1234567890abcdef1", updateReq, 999L, "ROLE_COMPANY"));
+        verify(jobRepository, never()).save(any(Job.class));
     }
 
     @Test
+    @DisplayName("Should delete job and associated applications")
+    void shouldDeleteJob() {
+        when(jobRepository.findById("66c3abc1234567890abcdef1")).thenReturn(Optional.of(sampleJob));
+        when(applicationRepository.findByJobId("66c3abc1234567890abcdef1")).thenReturn(List.of(sampleApplication));
+        doNothing().when(applicationRepository).deleteAll(anyList());
+        doNothing().when(jobRepository).delete(sampleJob);
+
+        assertDoesNotThrow(() -> jobService.deleteJob("66c3abc1234567890abcdef1", 10L, "ROLE_COMPANY"));
+        verify(jobRepository, times(1)).delete(sampleJob);
+        verify(applicationRepository, times(1)).deleteAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Should apply to job successfully for authorized candidate")
     void shouldApplyToJobSuccessfully() {
         ApplyJobRequest applyReq = ApplyJobRequest.builder()
                 .candidateId(1L)
-                .notes("Strong background in Java")
+                .notes("Strong background in Java and MongoDB")
                 .resumeUrl("https://example.com/resume.pdf")
                 .build();
 
-        when(jobRepository.findById(1L)).thenReturn(Optional.of(sampleJob));
-        when(applicationRepository.existsByJobIdAndCandidateId(1L, 1L)).thenReturn(false);
+        when(jobRepository.findById("66c3abc1234567890abcdef1")).thenReturn(Optional.of(sampleJob));
+        when(applicationRepository.existsByJobIdAndCandidateId("66c3abc1234567890abcdef1", 1L)).thenReturn(false);
         when(applicationRepository.save(any(Application.class))).thenReturn(sampleApplication);
 
-        ApplicationResponse response = jobService.applyToJob(1L, applyReq, 1L, "ROLE_CANDIDATE");
+        ApplicationResponse response = jobService.applyToJob("66c3abc1234567890abcdef1", applyReq, 1L, "ROLE_CANDIDATE");
 
         assertNotNull(response);
-        assertEquals(100L, response.getId());
+        assertEquals("66c3abc1234567890abcdef2", response.getId());
         assertEquals(ApplicationStatus.APPLIED, response.getStatus());
         verify(applicationRepository, times(1)).save(any(Application.class));
     }
 
     @Test
+    @DisplayName("Should throw DuplicateResourceException when candidate applies twice")
     void shouldThrowDuplicateExceptionWhenCandidateAppliesTwice() {
         ApplyJobRequest applyReq = ApplyJobRequest.builder()
                 .candidateId(1L)
                 .build();
 
-        when(jobRepository.findById(1L)).thenReturn(Optional.of(sampleJob));
-        when(applicationRepository.existsByJobIdAndCandidateId(1L, 1L)).thenReturn(true);
+        when(jobRepository.findById("66c3abc1234567890abcdef1")).thenReturn(Optional.of(sampleJob));
+        when(applicationRepository.existsByJobIdAndCandidateId("66c3abc1234567890abcdef1", 1L)).thenReturn(true);
 
-        assertThrows(DuplicateResourceException.class, () -> jobService.applyToJob(1L, applyReq, 1L, "ROLE_CANDIDATE"));
+        assertThrows(DuplicateResourceException.class, () ->
+                jobService.applyToJob("66c3abc1234567890abcdef1", applyReq, 1L, "ROLE_CANDIDATE"));
         verify(applicationRepository, never()).save(any(Application.class));
     }
 
     @Test
-    void shouldUpdateApplicationStatus() {
+    @DisplayName("Should throw IllegalArgumentException when applying to closed job")
+    void shouldThrowWhenApplyingToClosedJob() {
+        sampleJob.setStatus(JobStatus.CLOSED);
+        ApplyJobRequest applyReq = ApplyJobRequest.builder().candidateId(1L).build();
+
+        when(jobRepository.findById("66c3abc1234567890abcdef1")).thenReturn(Optional.of(sampleJob));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                jobService.applyToJob("66c3abc1234567890abcdef1", applyReq, 1L, "ROLE_CANDIDATE"));
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalArgumentException when applying past deadline")
+    void shouldThrowWhenApplyingPastDeadline() {
+        sampleJob.setDeadline(LocalDateTime.now().minusDays(1)); // Expired
+        ApplyJobRequest applyReq = ApplyJobRequest.builder().candidateId(1L).build();
+
+        when(jobRepository.findById("66c3abc1234567890abcdef1")).thenReturn(Optional.of(sampleJob));
+
+        assertThrows(IllegalArgumentException.class, () ->
+                jobService.applyToJob("66c3abc1234567890abcdef1", applyReq, 1L, "ROLE_CANDIDATE"));
+    }
+
+    @Test
+    @DisplayName("Should update application status when state transition is valid")
+    void shouldUpdateApplicationStatusValidTransition() {
         UpdateApplicationStatusRequest statusReq = UpdateApplicationStatusRequest.builder()
                 .status(ApplicationStatus.SHORTLISTED)
                 .build();
 
-        when(applicationRepository.findById(100L)).thenReturn(Optional.of(sampleApplication));
+        when(applicationRepository.findById("66c3abc1234567890abcdef2")).thenReturn(Optional.of(sampleApplication));
         when(applicationRepository.save(any(Application.class))).thenAnswer(i -> i.getArgument(0));
 
-        ApplicationResponse response = jobService.updateApplicationStatus(100L, statusReq, 10L, "ROLE_COMPANY");
+        ApplicationResponse response = jobService.updateApplicationStatus("66c3abc1234567890abcdef2", statusReq, 10L, "ROLE_COMPANY");
 
         assertNotNull(response);
         assertEquals(ApplicationStatus.SHORTLISTED, response.getStatus());
+    }
+
+    @Test
+    @DisplayName("Should throw IllegalStateException when illegal state machine transition is attempted")
+    void shouldThrowOnIllegalStateTransition() {
+        // Set current state to REJECTED (terminal state)
+        sampleApplication.setStatus(ApplicationStatus.REJECTED);
+
+        UpdateApplicationStatusRequest statusReq = UpdateApplicationStatusRequest.builder()
+                .status(ApplicationStatus.INTERVIEW) // Illegal transition from REJECTED
+                .build();
+
+        when(applicationRepository.findById("66c3abc1234567890abcdef2")).thenReturn(Optional.of(sampleApplication));
+
+        assertThrows(IllegalStateException.class, () ->
+                jobService.updateApplicationStatus("66c3abc1234567890abcdef2", statusReq, 10L, "ROLE_COMPANY"));
+        verify(applicationRepository, never()).save(any(Application.class));
     }
 }

@@ -16,11 +16,11 @@ import java.util.List;
 @Schema(description = "AI Job Matching Result")
 public class MatchResponse {
 
-    @Schema(description = "Match Result ID", example = "1")
-    private Long id;
+    @Schema(description = "Match Result ID (MongoDB ObjectId or Identifier)", example = "66c43ab2f89a120001bc34e2")
+    private String id;
 
-    @Schema(description = "Resume ID", example = "1")
-    private Long resumeId;
+    @Schema(description = "Resume ID", example = "66c43ab2f89a120001bc34e1")
+    private String resumeId;
 
     @Schema(description = "Candidate ID", example = "101")
     private Long candidateId;

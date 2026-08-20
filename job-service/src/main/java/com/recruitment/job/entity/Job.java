@@ -1,20 +1,15 @@
 package com.recruitment.job.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
-@Entity
-@Table(name = "jobs", indexes = {
-        @Index(name = "idx_job_company_id", columnList = "company_id"),
-        @Index(name = "idx_job_status", columnList = "status"),
-        @Index(name = "idx_job_location", columnList = "location")
-})
+@Document(collection = "jobs")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -23,44 +18,34 @@ import java.util.List;
 public class Job {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(name = "company_id", nullable = false)
+    @Indexed
     private Long companyId;
 
-    @Column(name = "title", nullable = false)
     private String title;
 
-    @Column(name = "description", columnDefinition = "TEXT", nullable = false)
     private String description;
 
-    @Column(name = "required_skills", columnDefinition = "TEXT")
     private String requiredSkills;
 
-    @Column(name = "location")
+    @Indexed
     private String location;
 
-    @Column(name = "salary_range")
     private String salaryRange;
 
-    @Column(name = "job_type")
+    @Indexed
     private String jobType;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
+    @Indexed
     @Builder.Default
     private JobStatus status = JobStatus.OPEN;
 
-    @OneToMany(mappedBy = "job", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @Builder.Default
-    private List<Application> applications = new ArrayList<>();
+    private LocalDateTime deadline;
 
-    @CreationTimestamp
-    @Column(name = "posted_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime postedAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 }

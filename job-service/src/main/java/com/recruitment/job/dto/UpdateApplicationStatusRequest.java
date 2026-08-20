@@ -12,10 +12,14 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Request payload to update job application status")
+@Schema(description = "Request payload to transition job application lifecycle status")
 public class UpdateApplicationStatusRequest {
 
     @NotNull(message = "Status is required")
-    @Schema(description = "New application status (APPLIED, SHORTLISTED, REJECTED, ACCEPTED)", example = "SHORTLISTED", requiredMode = Schema.RequiredMode.REQUIRED)
+    @Schema(
+            description = "Target application status. Valid values: APPLIED, REVIEWED, SHORTLISTED, INTERVIEW, OFFERED, ACCEPTED, REJECTED, WITHDRAWN. Must follow state machine transition rules.",
+            example = "SHORTLISTED",
+            requiredMode = Schema.RequiredMode.REQUIRED
+    )
     private ApplicationStatus status;
 }

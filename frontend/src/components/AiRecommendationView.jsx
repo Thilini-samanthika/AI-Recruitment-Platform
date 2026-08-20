@@ -78,7 +78,7 @@ export default function AiRecommendationView({ preselectedResume, preselectedJob
       const targetJob = jobs.find(j => j.id === Number(selectedJobId));
 
       let payload = {
-        resumeId: selectedResumeId ? Number(selectedResumeId) : null,
+        resumeId: selectedResumeId ? String(selectedResumeId) : null,
         candidateId: candidateId,
         jobId: targetJob ? targetJob.id : 999,
         jobTitle: targetJob ? targetJob.title : customJobTitle || "Custom Role",

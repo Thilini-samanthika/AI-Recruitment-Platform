@@ -1,17 +1,20 @@
 package com.recruitment.ai.entity;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
-@Entity
-@Table(name = "resumes")
+@Document(collection = "resumes")
 @Data
 @Builder
 @NoArgsConstructor
@@ -19,41 +22,30 @@ import java.time.Instant;
 public class Resume {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(name = "candidate_id", nullable = false)
+    @Indexed
     private Long candidateId;
 
-    @Column(name = "file_name")
     private String fileName;
 
-    @Column(name = "file_type")
     private String fileType;
 
-    @Column(name = "file_size")
     private Long fileSize;
 
-    @Column(name = "file_path", length = 500)
     private String filePath;
 
-    @Lob
-    @Column(name = "extracted_text", columnDefinition = "LONGTEXT")
     private String extractedText;
 
-    @Lob
-    @Column(name = "extracted_skills", columnDefinition = "TEXT")
-    private String extractedSkills;
+    @Builder.Default
+    private List<String> extractedSkills = new ArrayList<>();
 
-    @Column(name = "status", nullable = false)
     @Builder.Default
     private String status = "UPLOADED";
 
-    @CreationTimestamp
-    @Column(name = "uploaded_at", updatable = false)
+    @CreatedDate
     private Instant uploadedAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @LastModifiedDate
     private Instant updatedAt;
 }

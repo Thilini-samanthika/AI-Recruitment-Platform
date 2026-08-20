@@ -1,7 +1,5 @@
 package com.recruitment.ai.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitment.ai.dto.MatchRequest;
 import com.recruitment.ai.dto.MatchResponse;
 import com.recruitment.ai.dto.RecommendationResponse;
@@ -21,8 +19,42 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 
+/**
+ * ============================================================================
+ * AI Resume & Job Matching Service
+ * ============================================================================
+ *
+ * Algorithm Design & Scoring Signals:
+ * ----------------------------------------------------------------------------
+ * The matching engine computes semantic compatibility between candidate resumes
+ * and target job postings using a multi-phase algorithmic pipeline:
+ *
+ * 1. Candidate Skill Extraction Signal:
+ *    - Ingests structured skills extracted from the candidate's active resume.
+ *    - Normalized to standard taxonomy (e.g. "React.js" -> "React", "K8s" -> "Kubernetes").
+ *
+ * 2. Job Requirement Formulation Signal:
+ *    - Aggregates explicit `requiredSkills` list with NLP-extracted skill keywords
+ *      mined from the raw `jobDescription` text via dictionary & regex matching.
+ *
+ * 3. Bidirectional Substring & Exact Match Signal:
+ *    - Compares each required skill against candidate competencies using
+ *      case-insensitive equality and substring containment (e.g. "Spring" in "Spring Boot").
+ *
+ * 4. Deep Text Context Occurrence Signal:
+ *    - For unaligned skills, scans the full raw extracted resume text to identify
+ *      in-context keyword occurrences that were not extracted into the primary skill list.
+ *
+ * 5. Deterministic Compatibility Scoring:
+ *    - Match Percentage = (Count of Matched Skills / Total Required Skills) * 100.0
+ *    - Rounded to 1 decimal place with BigDecimal HALF_UP.
+ *
+ * 6. Tiered Qualitative Analysis & Feedback:
+ *    - Exceptional Alignment (>= 80%): Validates profile readiness and core competencies.
+ *    - Good Potential (50% - 79%): Highlights candidate strengths and pinpoints skill gaps for upskilling.
+ *    - Moderate Alignment (< 50%): Flags prerequisite missing requirements.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,20 +65,19 @@ public class AiMatchingService {
     private final RecommendationRepository recommendationRepository;
     private final ResumeParserService resumeParserService;
     private final ResumeService resumeService;
-    private final ObjectMapper objectMapper;
 
     /**
-     * Match candidate resume against a job and record results
+     * Match candidate resume against a target job posting and persist result
      */
     @Transactional
     public MatchResponse matchResumeWithJob(MatchRequest request) {
         Resume resume = null;
 
         // 1. Locate resume by resumeId or by candidateId
-        if (request.getResumeId() != null) {
+        if (request.getResumeId() != null && !request.getResumeId().isBlank()) {
             resume = resumeRepository.findById(request.getResumeId())
                     .orElseThrow(() -> new ResourceNotFoundException("Resume not found with ID: " + request.getResumeId()));
-        } else if (request.getCandidateId() != null) {
+        } else if (request.getCandidateId() != null && request.getCandidateId() > 0) {
             resume = resumeRepository.findFirstByCandidateIdOrderByUploadedAtDesc(request.getCandidateId())
                     .orElseThrow(() -> new ResourceNotFoundException("No resume found for candidate ID: " + request.getCandidateId()));
         }
@@ -55,7 +86,7 @@ public class AiMatchingService {
         String resumeText = "";
 
         if (resume != null) {
-            candidateSkills = resumeService.deserializeSkills(resume.getExtractedSkills());
+            candidateSkills = resume.getExtractedSkills() != null ? resume.getExtractedSkills() : new ArrayList<>();
             resumeText = resume.getExtractedText() != null ? resume.getExtractedText() : "";
         }
 
@@ -65,13 +96,13 @@ public class AiMatchingService {
             requiredSkillsSet.addAll(request.getRequiredSkills());
         }
 
-        // Also extract skills from job description text if provided
+        // Extract additional skills from job description text if provided
         if (request.getJobDescription() != null && !request.getJobDescription().isBlank()) {
             List<String> descSkills = resumeParserService.extractSkills(request.getJobDescription());
             requiredSkillsSet.addAll(descSkills);
         }
 
-        // Default fallback if no skills detected
+        // Default standard fallback if no skills provided or detected
         if (requiredSkillsSet.isEmpty()) {
             requiredSkillsSet.addAll(List.of("Java", "Spring Boot", "SQL", "Git", "REST API"));
         }
@@ -84,7 +115,7 @@ public class AiMatchingService {
 
         for (String reqSkill : requiredSkills) {
             boolean isMatched = false;
-            // Check direct match
+            // Check direct match or substring containment
             for (String candSkill : candidateSkills) {
                 if (reqSkill.equalsIgnoreCase(candSkill) ||
                         candSkill.toLowerCase().contains(reqSkill.toLowerCase()) ||
@@ -115,8 +146,8 @@ public class AiMatchingService {
         // 4. Generate AI Analysis Summary
         String analysisSummary = generateSummary(matchPercentage, matchedSkills, missingSkills, request.getJobTitle());
 
-        // 5. Persist to match_results table
-        Long resumeId = resume != null ? resume.getId() : 0L;
+        // 5. Persist to MongoDB match_results collection
+        String resumeId = resume != null ? resume.getId() : (request.getResumeId() != null ? request.getResumeId() : "0");
         Long candidateId = (resume != null) ? resume.getCandidateId() : request.getCandidateId();
 
         MatchResult matchResult = MatchResult.builder()
@@ -124,9 +155,10 @@ public class AiMatchingService {
                 .candidateId(candidateId)
                 .jobId(request.getJobId())
                 .matchPercentage(matchPercentage)
-                .matchedSkills(serializeList(new ArrayList<>(matchedSkills)))
-                .missingSkills(serializeList(new ArrayList<>(missingSkills)))
+                .matchedSkills(new ArrayList<>(matchedSkills))
+                .missingSkills(new ArrayList<>(missingSkills))
                 .analysisSummary(analysisSummary)
+                .createdAt(Instant.now())
                 .build();
 
         MatchResult savedResult = matchResultRepository.save(matchResult);
@@ -139,7 +171,8 @@ public class AiMatchingService {
                     .score(matchPercentage)
                     .jobTitle(request.getJobTitle() != null ? request.getJobTitle() : "Job #" + request.getJobId())
                     .companyName("Partner Enterprise")
-                    .matchedSkills(String.join(", ", matchedSkills))
+                    .matchedSkills(new ArrayList<>(matchedSkills))
+                    .createdAt(Instant.now())
                     .build();
             recommendationRepository.save(recommendation);
         }
@@ -180,14 +213,13 @@ public class AiMatchingService {
     private List<Recommendation> generateDefaultRecommendations(Long candidateId, List<String> skills) {
         List<Recommendation> defaults = new ArrayList<>();
 
-        // Smart defaults based on candidate's skills
         defaults.add(Recommendation.builder()
                 .candidateId(candidateId)
                 .jobId(101L)
                 .jobTitle("Senior Full Stack Java Engineer")
                 .companyName("Apex Cloud Technologies")
                 .score(88.5)
-                .matchedSkills("Java, Spring Boot, MySQL, REST API, React")
+                .matchedSkills(List.of("Java", "Spring Boot", "MySQL", "REST API", "React"))
                 .createdAt(Instant.now())
                 .build());
 
@@ -197,7 +229,7 @@ public class AiMatchingService {
                 .jobTitle("AI Solutions & Backend Developer")
                 .companyName("Cognitive Systems Inc")
                 .score(82.0)
-                .matchedSkills("Java, Python, Microservices, Docker, Git")
+                .matchedSkills(List.of("Java", "Python", "Microservices", "Docker", "Git"))
                 .createdAt(Instant.now())
                 .build());
 
@@ -207,7 +239,7 @@ public class AiMatchingService {
                 .jobTitle("Cloud DevOps & Infrastructure Specialist")
                 .companyName("Nexus Global Corp")
                 .score(74.0)
-                .matchedSkills("Docker, Kubernetes, CI/CD, Linux, AWS")
+                .matchedSkills(List.of("Docker", "Kubernetes", "CI/CD", "Linux", "AWS"))
                 .createdAt(Instant.now())
                 .build());
 
@@ -229,13 +261,6 @@ public class AiMatchingService {
     }
 
     private RecommendationResponse toRecommendationResponse(Recommendation r) {
-        List<String> matchedSkills = r.getMatchedSkills() != null
-                ? Arrays.stream(r.getMatchedSkills().split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .toList()
-                : Collections.emptyList();
-
         return RecommendationResponse.builder()
                 .id(r.getId())
                 .candidateId(r.getCandidateId())
@@ -243,17 +268,8 @@ public class AiMatchingService {
                 .jobTitle(r.getJobTitle())
                 .companyName(r.getCompanyName())
                 .score(r.getScore())
-                .matchedSkills(matchedSkills)
+                .matchedSkills(r.getMatchedSkills() != null ? r.getMatchedSkills() : Collections.emptyList())
                 .createdAt(r.getCreatedAt())
                 .build();
-    }
-
-    private String serializeList(List<String> list) {
-        if (list == null || list.isEmpty()) return "[]";
-        try {
-            return objectMapper.writeValueAsString(list);
-        } catch (Exception e) {
-            return String.join(",", list);
-        }
     }
 }

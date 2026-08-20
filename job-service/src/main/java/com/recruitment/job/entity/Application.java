@@ -1,18 +1,17 @@
 package com.recruitment.job.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "applications", indexes = {
-        @Index(name = "idx_application_job_id", columnList = "job_id"),
-        @Index(name = "idx_application_candidate_id", columnList = "candidate_id"),
-        @Index(name = "idx_application_unique_job_candidate", columnList = "job_id, candidate_id", unique = true)
-})
+@Document(collection = "applications")
+@CompoundIndex(name = "idx_job_candidate_unique", def = "{'jobId': 1, 'candidateId': 1}", unique = true)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -21,32 +20,28 @@ import java.time.LocalDateTime;
 public class Application {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id", nullable = false)
-    private Job job;
+    @Indexed
+    private String jobId;
 
-    @Column(name = "candidate_id", nullable = false)
+    private String jobTitle;
+
+    private Long companyId;
+
+    @Indexed
     private Long candidateId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false)
     @Builder.Default
     private ApplicationStatus status = ApplicationStatus.APPLIED;
 
-    @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
-    @Column(name = "resume_url")
     private String resumeUrl;
 
-    @CreationTimestamp
-    @Column(name = "applied_at", nullable = false, updatable = false)
+    @CreatedDate
     private LocalDateTime appliedAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 }

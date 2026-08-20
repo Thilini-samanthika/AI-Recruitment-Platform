@@ -1,8 +1,7 @@
 // Frontend API Client for Candidate Service (Member 2)
-// Integrates with API Gateway at http://localhost:8080/api/candidates
+// Routes strictly through API Gateway at http://localhost:8080/api/candidates with JWT Bearer Token
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-const CANDIDATE_API_KEY = 'candidate-service-secret-key-12345';
+import { apiClient } from './apiClient';
 
 // Mock fallback profile for instantaneous demonstration / offline previews
 const initialMockCandidate = {
@@ -67,201 +66,100 @@ function persistLocal(data) {
 export const candidateApi = {
   // Get Candidate Profile by ID (or Me)
   async getProfile(candidateId = 1) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}`, {
-        headers: {
-          'X-API-KEY': CANDIDATE_API_KEY,
-          'X-User-Id': '1',
-          'X-User-Role': 'ROLE_CANDIDATE',
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return { success: true, data: data.data, source: 'API' };
-    } catch (err) {
-      console.warn('Backend unavailable, using responsive local candidate state:', err.message);
-      return { success: true, data: localStore, source: 'LOCAL_SYNC' };
+    const res = await apiClient.get(`/api/candidates/${candidateId}`);
+    if (res.success && res.data) {
+      return { success: true, data: res.data, source: 'API_GATEWAY' };
     }
+    return { success: true, data: localStore, source: 'LOCAL_SYNC' };
   },
 
   // Update Candidate Profile
   async updateProfile(candidateId, updateData) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': CANDIDATE_API_KEY,
-          'X-User-Id': '1',
-          'X-User-Role': 'ROLE_CANDIDATE',
-        },
-        body: JSON.stringify(updateData)
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      persistLocal(data.data);
-      return { success: true, data: data.data };
-    } catch (err) {
-      const updated = { ...localStore, ...updateData, updatedAt: new Date().toISOString() };
-      persistLocal(updated);
-      return { success: true, data: updated };
+    const res = await apiClient.put(`/api/candidates/${candidateId}`, updateData);
+    if (res.success && res.data) {
+      persistLocal(res.data);
+      return { success: true, data: res.data };
     }
+    const updated = { ...localStore, ...updateData, updatedAt: new Date().toISOString() };
+    persistLocal(updated);
+    return { success: true, data: updated };
   },
 
   // Add Skill
   async addSkill(candidateId, skillData) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}/skills`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': CANDIDATE_API_KEY,
-          'X-User-Id': '1',
-          'X-User-Role': 'ROLE_CANDIDATE',
-        },
-        body: JSON.stringify(skillData)
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const newSkill = data.data;
-      const updated = { ...localStore, skills: [...localStore.skills, newSkill] };
-      persistLocal(updated);
-      return { success: true, data: newSkill };
-    } catch (err) {
-      const newSkill = { id: Date.now(), candidateId, ...skillData };
-      const updated = { ...localStore, skills: [...localStore.skills, newSkill] };
+    const res = await apiClient.post(`/api/candidates/${candidateId}/skills`, skillData);
+    if (res.success && res.data) {
+      const newSkill = res.data;
+      const updated = { ...localStore, skills: [...(localStore.skills || []), newSkill] };
       persistLocal(updated);
       return { success: true, data: newSkill };
     }
+    const newSkill = { id: Date.now(), candidateId, ...skillData };
+    const updated = { ...localStore, skills: [...(localStore.skills || []), newSkill] };
+    persistLocal(updated);
+    return { success: true, data: newSkill };
   },
 
   // Delete Skill
   async deleteSkill(candidateId, skillId) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}/skills/${skillId}`, {
-        method: 'DELETE',
-        headers: {
-          'X-API-KEY': CANDIDATE_API_KEY,
-          'X-User-Id': '1',
-          'X-User-Role': 'ROLE_CANDIDATE',
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch (err) {
-      console.warn('Deleting skill in local state');
-    }
-    const updated = { ...localStore, skills: localStore.skills.filter(s => s.id !== skillId) };
+    await apiClient.delete(`/api/candidates/${candidateId}/skills/${skillId}`);
+    const updated = { ...localStore, skills: (localStore.skills || []).filter(s => s.id !== skillId) };
     persistLocal(updated);
     return { success: true };
   },
 
   // Add Education
   async addEducation(candidateId, eduData) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}/education`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': CANDIDATE_API_KEY,
-          'X-User-Id': '1',
-          'X-User-Role': 'ROLE_CANDIDATE',
-        },
-        body: JSON.stringify(eduData)
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const newEdu = data.data;
-      const updated = { ...localStore, educations: [...localStore.educations, newEdu] };
-      persistLocal(updated);
-      return { success: true, data: newEdu };
-    } catch (err) {
-      const newEdu = { id: Date.now(), candidateId, ...eduData };
-      const updated = { ...localStore, educations: [...localStore.educations, newEdu] };
+    const res = await apiClient.post(`/api/candidates/${candidateId}/education`, eduData);
+    if (res.success && res.data) {
+      const newEdu = res.data;
+      const updated = { ...localStore, educations: [...(localStore.educations || []), newEdu] };
       persistLocal(updated);
       return { success: true, data: newEdu };
     }
+    const newEdu = { id: Date.now(), candidateId, ...eduData };
+    const updated = { ...localStore, educations: [...(localStore.educations || []), newEdu] };
+    persistLocal(updated);
+    return { success: true, data: newEdu };
   },
 
   // Delete Education
   async deleteEducation(candidateId, eduId) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}/education/${eduId}`, {
-        method: 'DELETE',
-        headers: {
-          'X-API-KEY': CANDIDATE_API_KEY,
-          'X-User-Id': '1',
-          'X-User-Role': 'ROLE_CANDIDATE',
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch (err) {
-      console.warn('Deleting education in local state');
-    }
-    const updated = { ...localStore, educations: localStore.educations.filter(e => e.id !== eduId) };
+    await apiClient.delete(`/api/candidates/${candidateId}/education/${eduId}`);
+    const updated = { ...localStore, educations: (localStore.educations || []).filter(e => e.id !== eduId) };
     persistLocal(updated);
     return { success: true };
   },
 
   // Add Experience
   async addExperience(candidateId, expData) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}/experience`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': CANDIDATE_API_KEY,
-          'X-User-Id': '1',
-          'X-User-Role': 'ROLE_CANDIDATE',
-        },
-        body: JSON.stringify(expData)
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const newExp = data.data;
-      const updated = { ...localStore, experiences: [...localStore.experiences, newExp] };
-      persistLocal(updated);
-      return { success: true, data: newExp };
-    } catch (err) {
-      const newExp = { id: Date.now(), candidateId, ...expData };
-      const updated = { ...localStore, experiences: [...localStore.experiences, newExp] };
+    const res = await apiClient.post(`/api/candidates/${candidateId}/experience`, expData);
+    if (res.success && res.data) {
+      const newExp = res.data;
+      const updated = { ...localStore, experiences: [...(localStore.experiences || []), newExp] };
       persistLocal(updated);
       return { success: true, data: newExp };
     }
+    const newExp = { id: Date.now(), candidateId, ...expData };
+    const updated = { ...localStore, experiences: [...(localStore.experiences || []), newExp] };
+    persistLocal(updated);
+    return { success: true, data: newExp };
   },
 
   // Delete Experience
   async deleteExperience(candidateId, expId) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates/${candidateId}/experience/${expId}`, {
-        method: 'DELETE',
-        headers: {
-          'X-API-KEY': CANDIDATE_API_KEY,
-          'X-User-Id': '1',
-          'X-User-Role': 'ROLE_CANDIDATE',
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch (err) {
-      console.warn('Deleting experience in local state');
-    }
-    const updated = { ...localStore, experiences: localStore.experiences.filter(e => e.id !== expId) };
+    await apiClient.delete(`/api/candidates/${candidateId}/experience/${expId}`);
+    const updated = { ...localStore, experiences: (localStore.experiences || []).filter(e => e.id !== expId) };
     persistLocal(updated);
     return { success: true };
   },
 
   // List all candidates
   async listCandidates() {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/candidates`, {
-        headers: {
-          'X-API-KEY': CANDIDATE_API_KEY
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return { success: true, data: data.data };
-    } catch (err) {
-      return { success: true, data: [localStore] };
+    const res = await apiClient.get('/api/candidates');
+    if (res.success && res.data) {
+      return { success: true, data: res.data };
     }
+    return { success: true, data: [localStore] };
   }
 };

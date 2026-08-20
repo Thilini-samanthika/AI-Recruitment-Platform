@@ -11,7 +11,7 @@ function getStoredResumes() {
   if (raw) return JSON.parse(raw);
   const initial = [
     {
-      id: 1,
+      id: "66c43ab2f89a120001bc34e1",
       candidateId: 1,
       fileName: "alex_mercer_fullstack_resume.pdf",
       fileType: "application/pdf",
@@ -49,7 +49,7 @@ export const aiApi = {
 
     const stored = getStoredResumes();
     const newResume = {
-      id: stored.length + 1,
+      id: `resume_${Date.now()}`,
       candidateId: Number(candidateId),
       fileName: file.name,
       fileType: file.type || `application/${fileExt}`,
@@ -82,14 +82,14 @@ export const aiApi = {
     }
 
     const stored = getStoredResumes();
-    const resume = stored.find(r => r.id === Number(resumeId));
+    const resume = stored.find(r => String(r.id) === String(resumeId));
     const skills = resume ? resume.extractedSkills : ["Java", "Spring Boot", "React", "MySQL"];
 
     return {
       success: true,
       message: 'Skills extracted successfully',
       data: {
-        resumeId: Number(resumeId),
+        resumeId: String(resumeId),
         status: 'PARSED',
         totalSkillsFound: skills.length,
         extractedSkills: skills,
@@ -109,7 +109,7 @@ export const aiApi = {
     }
 
     const stored = getStoredResumes();
-    const filtered = stored.filter(r => r.candidateId === Number(candidateId));
+    const filtered = stored.filter(r => String(r.candidateId) === String(candidateId));
 
     return {
       success: true,
@@ -126,7 +126,7 @@ export const aiApi = {
     if (res.success && res.data) return res;
 
     const stored = getStoredResumes();
-    const found = stored.find(r => r.id === Number(resumeId)) || stored[0];
+    const found = stored.find(r => String(r.id) === String(resumeId)) || stored[0];
     return {
       success: true,
       data: found
@@ -145,7 +145,7 @@ export const aiApi = {
 
     // Fallback intelligent matching algorithm
     const stored = getStoredResumes();
-    const resume = (payload.resumeId ? stored.find(r => r.id === Number(payload.resumeId)) : null) || stored[0];
+    const resume = (payload.resumeId ? stored.find(r => String(r.id) === String(payload.resumeId)) : null) || stored[0];
     const candidateSkills = (resume && resume.extractedSkills) ? resume.extractedSkills : ["Java", "Spring Boot", "React", "MySQL", "Docker"];
     const requiredSkills = payload.requiredSkills && payload.requiredSkills.length > 0
       ? payload.requiredSkills
@@ -168,8 +168,8 @@ export const aiApi = {
     }
 
     const mockResponse = {
-      id: Date.now(),
-      resumeId: resume ? resume.id : 1,
+      id: `match_${Date.now()}`,
+      resumeId: resume ? resume.id : "66c43ab2f89a120001bc34e1",
       candidateId: payload.candidateId || (resume ? resume.candidateId : 1),
       jobId: payload.jobId || 101,
       matchPercentage: matchPct,
@@ -200,7 +200,7 @@ export const aiApi = {
 
     const fallbackRecommendations = [
       {
-        id: 1,
+        id: "rec_1",
         candidateId: Number(candidateId),
         jobId: 101,
         jobTitle: "Senior Full Stack Java Engineer",
@@ -210,7 +210,7 @@ export const aiApi = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 2,
+        id: "rec_2",
         candidateId: Number(candidateId),
         jobId: 102,
         jobTitle: "Cloud Backend Specialist",
@@ -220,7 +220,7 @@ export const aiApi = {
         createdAt: new Date().toISOString()
       },
       {
-        id: 3,
+        id: "rec_3",
         candidateId: Number(candidateId),
         jobId: 103,
         jobTitle: "AI Platform Integration Engineer",

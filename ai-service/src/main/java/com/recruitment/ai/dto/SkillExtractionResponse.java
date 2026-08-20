@@ -15,8 +15,8 @@ import java.util.List;
 @Schema(description = "Skill Extraction Result")
 public class SkillExtractionResponse {
 
-    @Schema(description = "Resume ID", example = "1")
-    private Long resumeId;
+    @Schema(description = "Resume ID (MongoDB ObjectId or Identifier)", example = "66c43ab2f89a120001bc34e1")
+    private String resumeId;
 
     @Schema(description = "Processing status", example = "PARSED")
     private String status;

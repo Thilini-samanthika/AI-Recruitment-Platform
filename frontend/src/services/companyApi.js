@@ -1,8 +1,7 @@
 // Frontend API Client for Company Service (Member 3)
-// Integrates with API Gateway at http://localhost:8080/api/companies
+// Routes strictly through API Gateway at http://localhost:8080/api/companies with JWT Bearer Token
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-const COMPANY_API_KEY = 'company-service-secret-key-12345';
+import { apiClient } from './apiClient';
 
 // Realistic initial fallback data for instant offline demonstration & responsive UI testing
 const initialMockCompanies = [
@@ -75,133 +74,80 @@ function persistLocalCompanies(data) {
 export const companyApi = {
   // 1. List all companies
   async listCompanies() {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/companies`, {
-        headers: {
-          'X-API-KEY': COMPANY_API_KEY
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return { success: true, data: data.data, source: 'API' };
-    } catch (err) {
-      console.warn('Backend unavailable, using synchronized local company store:', err.message);
-      return { success: true, data: localCompanies, source: 'LOCAL_SYNC' };
+    const res = await apiClient.get('/api/companies');
+    if (res.success && res.data) {
+      return { success: true, data: res.data, source: 'API_GATEWAY' };
     }
+    return { success: true, data: localCompanies, source: 'LOCAL_SYNC' };
   },
 
   // 2. Get company by ID
   async getCompany(companyId = 1) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/companies/${companyId}`, {
-        headers: {
-          'X-API-KEY': COMPANY_API_KEY,
-          'X-User-Id': '10',
-          'X-User-Role': 'ROLE_COMPANY'
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return { success: true, data: data.data, source: 'API' };
-    } catch (err) {
-      const found = localCompanies.find(c => c.id === Number(companyId)) || localCompanies[0];
-      return { success: true, data: found, source: 'LOCAL_SYNC' };
+    const res = await apiClient.get(`/api/companies/${companyId}`);
+    if (res.success && res.data) {
+      return { success: true, data: res.data, source: 'API_GATEWAY' };
     }
+    const found = localCompanies.find(c => c.id === Number(companyId)) || localCompanies[0];
+    return { success: true, data: found, source: 'LOCAL_SYNC' };
   },
 
   // 3. Register a new company
   async registerCompany(companyData) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/companies`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': COMPANY_API_KEY,
-          'X-User-Id': String(companyData.userId || 10),
-          'X-User-Role': 'ROLE_COMPANY'
-        },
-        body: JSON.stringify(companyData)
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const newCompany = data.data;
-      persistLocalCompanies([...localCompanies, newCompany]);
-      return { success: true, data: newCompany };
-    } catch (err) {
-      const newCompany = {
-        id: Date.now(),
-        userId: companyData.userId || Math.floor(Math.random() * 1000),
-        companyName: companyData.companyName,
-        email: companyData.email,
-        phone: companyData.phone || '',
-        address: companyData.address || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        profile: {
-          id: Date.now() + 1,
-          companyId: Date.now(),
-          industry: companyData.industry || 'Technology',
-          companySize: companyData.companySize || '11-50',
-          website: companyData.website || '',
-          description: companyData.description || 'Newly registered company on AI Recruitment Platform.',
-          logoUrl: companyData.logoUrl || 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=150&auto=format&fit=crop&q=80'
-        }
-      };
+    const res = await apiClient.post('/api/companies', companyData);
+    if (res.success && res.data) {
+      const newCompany = res.data;
       persistLocalCompanies([...localCompanies, newCompany]);
       return { success: true, data: newCompany };
     }
+    const newCompany = {
+      id: Date.now(),
+      userId: companyData.userId || Math.floor(Math.random() * 1000),
+      companyName: companyData.companyName,
+      email: companyData.email,
+      phone: companyData.phone || '',
+      address: companyData.address || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      profile: {
+        id: Date.now() + 1,
+        companyId: Date.now(),
+        industry: companyData.industry || 'Technology',
+        companySize: companyData.companySize || '11-50',
+        website: companyData.website || '',
+        description: companyData.description || 'Newly registered company on AI Recruitment Platform.',
+        logoUrl: companyData.logoUrl || 'https://images.unsplash.com/photo-1549719386-74dfcbf7dbed?w=150&auto=format&fit=crop&q=80'
+      }
+    };
+    persistLocalCompanies([...localCompanies, newCompany]);
+    return { success: true, data: newCompany };
   },
 
   // 4. Update basic company info
   async updateCompany(companyId, updateData) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/companies/${companyId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': COMPANY_API_KEY,
-          'X-User-Id': '10',
-          'X-User-Role': 'ROLE_COMPANY'
-        },
-        body: JSON.stringify(updateData)
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const updated = data.data;
+    const res = await apiClient.put(`/api/companies/${companyId}`, updateData);
+    if (res.success && res.data) {
+      const updated = res.data;
       persistLocalCompanies(localCompanies.map(c => c.id === Number(companyId) ? { ...c, ...updated } : c));
       return { success: true, data: updated };
-    } catch (err) {
-      const updatedList = localCompanies.map(c => {
-        if (c.id === Number(companyId)) {
-          return {
-            ...c,
-            ...updateData,
-            updatedAt: new Date().toISOString()
-          };
-        }
-        return c;
-      });
-      persistLocalCompanies(updatedList);
-      const found = updatedList.find(c => c.id === Number(companyId));
-      return { success: true, data: found };
     }
+    const updatedList = localCompanies.map(c => {
+      if (c.id === Number(companyId)) {
+        return {
+          ...c,
+          ...updateData,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return c;
+    });
+    persistLocalCompanies(updatedList);
+    const found = updatedList.find(c => c.id === Number(companyId));
+    return { success: true, data: found };
   },
 
   // 5. Delete company
   async deleteCompany(companyId) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/companies/${companyId}`, {
-        method: 'DELETE',
-        headers: {
-          'X-API-KEY': COMPANY_API_KEY,
-          'X-User-Id': '10',
-          'X-User-Role': 'ROLE_COMPANY'
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    } catch (err) {
-      console.warn('Deleting company locally');
-    }
+    await apiClient.delete(`/api/companies/${companyId}`);
     const filtered = localCompanies.filter(c => c.id !== Number(companyId));
     persistLocalCompanies(filtered);
     return { success: true };
@@ -209,35 +155,9 @@ export const companyApi = {
 
   // 6. Save or update extended profile
   async saveOrUpdateProfile(companyId, profileData) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/companies/${companyId}/profile`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-KEY': COMPANY_API_KEY,
-          'X-User-Id': '10',
-          'X-User-Role': 'ROLE_COMPANY'
-        },
-        body: JSON.stringify(profileData)
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const newProfile = data.data;
-
-      const updatedList = localCompanies.map(c => {
-        if (c.id === Number(companyId)) {
-          return { ...c, profile: newProfile, updatedAt: new Date().toISOString() };
-        }
-        return c;
-      });
-      persistLocalCompanies(updatedList);
-      return { success: true, data: newProfile };
-    } catch (err) {
-      const newProfile = {
-        id: Date.now(),
-        companyId: Number(companyId),
-        ...profileData
-      };
+    const res = await apiClient.post(`/api/companies/${companyId}/profile`, profileData);
+    if (res.success && res.data) {
+      const newProfile = res.data;
       const updatedList = localCompanies.map(c => {
         if (c.id === Number(companyId)) {
           return { ...c, profile: newProfile, updatedAt: new Date().toISOString() };
@@ -247,22 +167,28 @@ export const companyApi = {
       persistLocalCompanies(updatedList);
       return { success: true, data: newProfile };
     }
+    const newProfile = {
+      id: Date.now(),
+      companyId: Number(companyId),
+      ...profileData
+    };
+    const updatedList = localCompanies.map(c => {
+      if (c.id === Number(companyId)) {
+        return { ...c, profile: newProfile, updatedAt: new Date().toISOString() };
+      }
+      return c;
+    });
+    persistLocalCompanies(updatedList);
+    return { success: true, data: newProfile };
   },
 
   // 7. Get extended profile by company ID
   async getProfile(companyId) {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/companies/${companyId}/profile`, {
-        headers: {
-          'X-API-KEY': COMPANY_API_KEY
-        }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      return { success: true, data: data.data };
-    } catch (err) {
-      const comp = localCompanies.find(c => c.id === Number(companyId));
-      return { success: true, data: comp ? comp.profile : null };
+    const res = await apiClient.get(`/api/companies/${companyId}/profile`);
+    if (res.success && res.data) {
+      return { success: true, data: res.data };
     }
+    const comp = localCompanies.find(c => c.id === Number(companyId));
+    return { success: true, data: comp ? comp.profile : null };
   }
 };

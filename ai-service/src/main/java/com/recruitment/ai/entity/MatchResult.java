@@ -1,16 +1,19 @@
 package com.recruitment.ai.entity;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
-@Entity
-@Table(name = "match_results")
+@Document(collection = "match_results")
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,34 +21,27 @@ import java.time.Instant;
 public class MatchResult {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(name = "resume_id", nullable = false)
-    private Long resumeId;
+    @Indexed
+    private String resumeId;
 
-    @Column(name = "candidate_id")
+    @Indexed
     private Long candidateId;
 
-    @Column(name = "job_id", nullable = false)
+    @Indexed
     private Long jobId;
 
-    @Column(name = "match_percentage", nullable = false)
     private Double matchPercentage;
 
-    @Lob
-    @Column(name = "matched_skills", columnDefinition = "TEXT")
-    private String matchedSkills;
+    @Builder.Default
+    private List<String> matchedSkills = new ArrayList<>();
 
-    @Lob
-    @Column(name = "missing_skills", columnDefinition = "TEXT")
-    private String missingSkills;
+    @Builder.Default
+    private List<String> missingSkills = new ArrayList<>();
 
-    @Lob
-    @Column(name = "analysis_summary", columnDefinition = "TEXT")
     private String analysisSummary;
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
     private Instant createdAt;
 }

@@ -1,7 +1,5 @@
 package com.recruitment.ai.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.recruitment.ai.dto.ResumeResponse;
 import com.recruitment.ai.dto.SkillExtractionResponse;
 import com.recruitment.ai.entity.Resume;
@@ -24,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.time.Instant;
 import java.util.*;
 
 @Slf4j
@@ -33,7 +32,6 @@ public class ResumeService {
 
     private final ResumeRepository resumeRepository;
     private final ResumeParserService resumeParserService;
-    private final ObjectMapper objectMapper;
 
     @Value("${storage.upload-dir:uploads/resumes}")
     private String uploadDir;
@@ -52,15 +50,15 @@ public class ResumeService {
     }
 
     /**
-     * Upload resume file, extract text & skills, and persist to database
+     * Upload resume file, extract text & skills, and persist to MongoDB
      */
     @Transactional
     public ResumeResponse uploadResume(Long candidateId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new FileProcessingException("Uploaded resume file cannot be empty");
         }
-        if (candidateId == null) {
-            throw new IllegalArgumentException("candidateId is required");
+        if (candidateId == null || candidateId <= 0) {
+            throw new IllegalArgumentException("candidateId is required and must be a positive number");
         }
 
         String originalFilename = file.getOriginalFilename();
@@ -84,7 +82,7 @@ public class ResumeService {
 
         // 2. Extract text and identify skills
         String extractedText = "";
-        List<String> skills = Collections.emptyList();
+        List<String> skills = new ArrayList<>();
         String status = "UPLOADED";
 
         try {
@@ -96,9 +94,7 @@ public class ResumeService {
             status = "PARSED"; // fallback
         }
 
-        String skillsJson = serializeSkills(skills);
-
-        // 3. Save Resume record
+        // 3. Save Resume record to MongoDB
         Resume resume = Resume.builder()
                 .candidateId(candidateId)
                 .fileName(originalFilename)
@@ -106,8 +102,10 @@ public class ResumeService {
                 .fileSize(fileSize)
                 .filePath(targetLocation.toString())
                 .extractedText(extractedText)
-                .extractedSkills(skillsJson)
+                .extractedSkills(skills)
                 .status(status)
+                .uploadedAt(Instant.now())
+                .updatedAt(Instant.now())
                 .build();
 
         Resume saved = resumeRepository.save(resume);
@@ -120,7 +118,7 @@ public class ResumeService {
      * Re-extract or explicitly trigger skill extraction for an existing resume
      */
     @Transactional
-    public SkillExtractionResponse extractSkills(Long resumeId) {
+    public SkillExtractionResponse extractSkills(String resumeId) {
         Resume resume = resumeRepository.findById(resumeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Resume not found with ID: " + resumeId));
 
@@ -138,8 +136,9 @@ public class ResumeService {
         }
 
         List<String> skills = resumeParserService.extractSkills(text != null ? text : "");
-        resume.setExtractedSkills(serializeSkills(skills));
+        resume.setExtractedSkills(skills);
         resume.setStatus("PARSED");
+        resume.setUpdatedAt(Instant.now());
         resumeRepository.save(resume);
 
         String preview = (text != null && text.length() > 300) ? text.substring(0, 300) + "..." : text;
@@ -160,7 +159,7 @@ public class ResumeService {
     public List<ResumeResponse> getResumesByCandidate(Long candidateId) {
         List<Resume> list = resumeRepository.findByCandidateIdOrderByUploadedAtDesc(candidateId);
         return list.stream()
-                .map(r -> toResumeResponse(r, deserializeSkills(r.getExtractedSkills())))
+                .map(r -> toResumeResponse(r, r.getExtractedSkills()))
                 .toList();
     }
 
@@ -168,17 +167,17 @@ public class ResumeService {
      * Get resume by ID
      */
     @Transactional(readOnly = true)
-    public ResumeResponse getResumeById(Long resumeId) {
+    public ResumeResponse getResumeById(String resumeId) {
         Resume resume = resumeRepository.findById(resumeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Resume not found with ID: " + resumeId));
-        return toResumeResponse(resume, deserializeSkills(resume.getExtractedSkills()));
+        return toResumeResponse(resume, resume.getExtractedSkills());
     }
 
     /**
      * Get raw file resource for download/preview
      */
     @Transactional(readOnly = true)
-    public Resource getResumeFileResource(Long resumeId) {
+    public Resource getResumeFileResource(String resumeId) {
         Resume resume = resumeRepository.findById(resumeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Resume not found with ID: " + resumeId));
 
@@ -196,7 +195,7 @@ public class ResumeService {
 
     public List<String> getCandidateSkills(Long candidateId) {
         return resumeRepository.findFirstByCandidateIdOrderByUploadedAtDesc(candidateId)
-                .map(r -> deserializeSkills(r.getExtractedSkills()))
+                .map(Resume::getExtractedSkills)
                 .orElse(Collections.emptyList());
     }
 
@@ -211,37 +210,10 @@ public class ResumeService {
                 .fileSize(resume.getFileSize())
                 .filePath(resume.getFilePath())
                 .extractedText(resume.getExtractedText())
-                .extractedSkills(skills != null ? skills : deserializeSkills(resume.getExtractedSkills()))
+                .extractedSkills(skills != null ? skills : (resume.getExtractedSkills() != null ? resume.getExtractedSkills() : Collections.emptyList()))
                 .status(resume.getStatus())
                 .uploadedAt(resume.getUploadedAt())
                 .updatedAt(resume.getUpdatedAt())
                 .build();
-    }
-
-    private String serializeSkills(List<String> skills) {
-        if (skills == null || skills.isEmpty()) return "[]";
-        try {
-            return objectMapper.writeValueAsString(skills);
-        } catch (Exception e) {
-            return String.join(",", skills);
-        }
-    }
-
-    public List<String> deserializeSkills(String jsonOrCsv) {
-        if (jsonOrCsv == null || jsonOrCsv.isBlank()) return Collections.emptyList();
-        try {
-            if (jsonOrCsv.trim().startsWith("[")) {
-                return objectMapper.readValue(jsonOrCsv, new TypeReference<List<String>>() {});
-            }
-            return Arrays.stream(jsonOrCsv.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .toList();
-        } catch (Exception e) {
-            return Arrays.stream(jsonOrCsv.split(","))
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .toList();
-        }
     }
 }

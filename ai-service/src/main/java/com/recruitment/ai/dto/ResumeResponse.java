@@ -16,8 +16,8 @@ import java.util.List;
 @Schema(description = "Resume Metadata & Content Details")
 public class ResumeResponse {
 
-    @Schema(description = "Resume ID", example = "1")
-    private Long id;
+    @Schema(description = "Resume ID (MongoDB ObjectId or Identifier)", example = "66c43ab2f89a120001bc34e1")
+    private String id;
 
     @Schema(description = "Candidate ID", example = "101")
     private Long candidateId;

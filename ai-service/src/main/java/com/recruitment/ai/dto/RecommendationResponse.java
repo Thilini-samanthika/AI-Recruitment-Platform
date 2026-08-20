@@ -16,8 +16,8 @@ import java.util.List;
 @Schema(description = "Job Recommendation for Candidate")
 public class RecommendationResponse {
 
-    @Schema(description = "Recommendation ID", example = "1")
-    private Long id;
+    @Schema(description = "Recommendation ID (MongoDB ObjectId or Identifier)", example = "66c43ab2f89a120001bc34e3")
+    private String id;
 
     @Schema(description = "Candidate ID", example = "101")
     private Long candidateId;

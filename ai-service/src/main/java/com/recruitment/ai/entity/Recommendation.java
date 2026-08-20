@@ -1,16 +1,19 @@
 package com.recruitment.ai.entity;
 
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
-@Entity
-@Table(name = "recommendations")
+@Document(collection = "recommendations")
 @Data
 @Builder
 @NoArgsConstructor
@@ -18,28 +21,23 @@ import java.time.Instant;
 public class Recommendation {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(name = "candidate_id", nullable = false)
+    @Indexed
     private Long candidateId;
 
-    @Column(name = "job_id", nullable = false)
+    @Indexed
     private Long jobId;
 
-    @Column(name = "score", nullable = false)
     private Double score;
 
-    @Column(name = "job_title")
     private String jobTitle;
 
-    @Column(name = "company_name")
     private String companyName;
 
-    @Column(name = "matched_skills", length = 500)
-    private String matchedSkills;
+    @Builder.Default
+    private List<String> matchedSkills = new ArrayList<>();
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @CreatedDate
     private Instant createdAt;
 }
